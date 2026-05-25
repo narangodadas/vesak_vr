@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#120018" />
+  <title>Vesak AR Lantern Competition</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="app">
+    <!-- Camera is drawn as a Three.js video background. This raw video is hidden. -->
+    <video id="cameraVideo" playsinline muted autoplay></video>
+
+    <!-- Three.js renderer canvas is injected here. -->
+    <div id="arContainer" aria-label="AR camera view"></div>
+
+    <section id="overlay" class="overlay">
+      <div class="panel">
+        <h1>Vesak AR Lantern</h1>
+        <p id="statusText">Scan the QR code to see the 3D Vesak lantern.</p>
+        <p class="small">Allow camera permission when asked.</p>
+      </div>
+    </section>
+
+    <div id="unsupported" class="unsupported hidden"></div>
+
+    <div id="controls" class="controls hidden">
+      <button id="captureBtn" type="button">📸 Screenshot</button>
+      <button id="resetBtn" type="button">↺ Reset</button>
+    </div>
+
+    <a id="downloadLink" class="download hidden" download="vesak-ar-lantern.png">Download screenshot</a>
+  </main>
+
+  <!-- Libraries: for a fully offline deployment, download these files into /vendor and update paths. -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
