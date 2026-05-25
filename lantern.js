@@ -1,81 +1,191 @@
-export function createVesakLantern() {
-  const group = new THREE.Group();
-  group.name = 'Procedural Vesak Lantern';
+// lantern.js
 
-  const colors = [0xff356e, 0xffd23f, 0x25d0ff, 0x73ff68, 0xc56cff, 0xff8c2b];
-  const panelMat = colors.map(c => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.16, roughness: 0.62, metalness: 0.02, transparent: true, opacity: 0.88, side: THREE.DoubleSide }));
-  const gold = new THREE.MeshStandardMaterial({ color: 0xffd86b, emissive: 0xffb000, emissiveIntensity: 0.2, roughness: 0.35 });
-  const white = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffe5b0, emissiveIntensity: 0.32, transparent: true, opacity: 0.8 });
+let lanternGroup;
+let innerLight;
+let glowMaterial;
+let animationTime = 0;
 
-  // Hexagonal paper body made from separate coloured panels.
-  const panelGeo = new THREE.PlaneGeometry(0.42, 0.78);
-  for (let i = 0; i < 6; i++) {
-    const panel = new THREE.Mesh(panelGeo, panelMat[i]);
-    const angle = (Math.PI * 2 * i) / 6;
-    panel.position.set(Math.sin(angle) * 0.36, 0, Math.cos(angle) * 0.36);
+export function createLantern(type = "vesak-lantern-1") {
+  lanternGroup = new THREE.Group();
+
+  const colorSets = {
+    "vesak-lantern-1": {
+      main: 0xff3366,
+      second: 0xffcc00,
+      third: 0x00ccff,
+      glow: 0xffaa33
+    },
+    "vesak-lantern-2": {
+      main: 0x00ff99,
+      second: 0xff66ff,
+      third: 0xffff33,
+      glow: 0x66ffcc
+    },
+    "vesak-lantern-3": {
+      main: 0x3366ff,
+      second: 0xff9933,
+      third: 0xff0066,
+      glow: 0xffcc66
+    }
+  };
+
+  const colors = colorSets[type] || colorSets["vesak-lantern-1"];
+
+  // Main octagon body
+  const bodyGeometry = new THREE.CylinderGeometry(0.65, 0.65, 1.2, 8);
+  const bodyMaterial = new THREE.MeshStandardMaterial({
+    color: colors.main,
+    transparent: true,
+    opacity: 0.72,
+    emissive: colors.main,
+    emissiveIntensity: 0.25,
+    roughness: 0.4,
+    metalness: 0.05
+  });
+
+  const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+  body.position.y = 0;
+  lanternGroup.add(body);
+
+  // Colorful vertical panels
+  const panelColors = [colors.main, colors.second, colors.third, 0xffffff];
+
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+
+    const panelGeo = new THREE.BoxGeometry(0.08, 1.22, 0.02);
+    const panelMat = new THREE.MeshStandardMaterial({
+      color: panelColors[i % panelColors.length],
+      emissive: panelColors[i % panelColors.length],
+      emissiveIntensity: 0.35,
+      transparent: true,
+      opacity: 0.9
+    });
+
+    const panel = new THREE.Mesh(panelGeo, panelMat);
+    panel.position.set(
+      Math.sin(angle) * 0.66,
+      0,
+      Math.cos(angle) * 0.66
+    );
     panel.rotation.y = angle;
-    group.add(panel);
+    lanternGroup.add(panel);
   }
 
-  // Top and bottom caps.
-  const top = new THREE.Mesh(new THREE.ConeGeometry(0.48, 0.32, 6), gold);
-  top.position.y = 0.55;
-  group.add(top);
-  const bottom = new THREE.Mesh(new THREE.ConeGeometry(0.48, 0.32, 6), gold);
-  bottom.position.y = -0.55;
+  // Top cone
+  const topGeo = new THREE.ConeGeometry(0.7, 0.45, 8);
+  const topMat = new THREE.MeshStandardMaterial({
+    color: colors.second,
+    emissive: colors.second,
+    emissiveIntensity: 0.25
+  });
+
+  const top = new THREE.Mesh(topGeo, topMat);
+  top.position.y = 0.82;
+  lanternGroup.add(top);
+
+  // Bottom cone
+  const bottom = top.clone();
+  bottom.position.y = -0.82;
   bottom.rotation.x = Math.PI;
-  group.add(bottom);
+  lanternGroup.add(bottom);
 
-  // Rings and decorative strips.
-  const ringGeo = new THREE.TorusGeometry(0.38, 0.018, 12, 80);
-  const topRing = new THREE.Mesh(ringGeo, gold);
-  topRing.position.y = 0.4;
-  topRing.rotation.x = Math.PI / 2;
-  group.add(topRing);
-  const bottomRing = topRing.clone();
-  bottomRing.position.y = -0.4;
-  group.add(bottomRing);
+  // Inner glowing sphere
+  const glowGeo = new THREE.SphereGeometry(0.33, 32, 32);
+  glowMaterial = new THREE.MeshBasicMaterial({
+    color: colors.glow,
+    transparent: true,
+    opacity: 0.85
+  });
 
-  for (let i = 0; i < 6; i++) {
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.85, 0.025), gold);
-    const angle = (Math.PI * 2 * i) / 6;
-    strip.position.set(Math.sin(angle) * 0.37, 0, Math.cos(angle) * 0.37);
-    group.add(strip);
-  }
+  const glow = new THREE.Mesh(glowGeo, glowMaterial);
+  glow.position.y = 0;
+  lanternGroup.add(glow);
 
-  // Inner glowing lamp.
-  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.16, 32, 32), white);
-  group.add(bulb);
-  const innerLight = new THREE.PointLight(0xffd27a, 1.8, 3.2, 2);
+  // Inner light
+  innerLight = new THREE.PointLight(colors.glow, 2.5, 4);
   innerLight.position.set(0, 0, 0);
-  group.add(innerLight);
+  lanternGroup.add(innerLight);
 
-  // Hanging tassels.
+  // Decorative rings
+  const ringMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    emissive: 0xffffff,
+    emissiveIntensity: 0.2
+  });
+
+  const topRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.66, 0.025, 16, 100),
+    ringMat
+  );
+  topRing.position.y = 0.62;
+  topRing.rotation.x = Math.PI / 2;
+  lanternGroup.add(topRing);
+
+  const bottomRing = topRing.clone();
+  bottomRing.position.y = -0.62;
+  lanternGroup.add(bottomRing);
+
+  // Hanging tassels / strips
   for (let i = 0; i < 12; i++) {
-    const tassel = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.014, 0.45, 8), panelMat[i % panelMat.length]);
-    const angle = (Math.PI * 2 * i) / 12;
-    tassel.position.set(Math.sin(angle) * 0.3, -0.86, Math.cos(angle) * 0.3);
-    tassel.rotation.z = Math.sin(angle) * 0.18;
-    group.add(tassel);
+    const angle = (i / 12) * Math.PI * 2;
+
+    const stripGeo = new THREE.BoxGeometry(0.035, 0.55, 0.015);
+    const stripMat = new THREE.MeshStandardMaterial({
+      color: panelColors[i % panelColors.length],
+      emissive: panelColors[i % panelColors.length],
+      emissiveIntensity: 0.3
+    });
+
+    const strip = new THREE.Mesh(stripGeo, stripMat);
+    strip.position.set(
+      Math.sin(angle) * 0.42,
+      -1.25,
+      Math.cos(angle) * 0.42
+    );
+    strip.rotation.y = angle;
+    strip.userData.swingOffset = i * 0.4;
+    lanternGroup.add(strip);
   }
 
-  // Soft ground shadow below lantern.
-  const shadow = new THREE.Mesh(
-    new THREE.CircleGeometry(0.55, 64),
-    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28 })
-  );
-  shadow.rotation.x = -Math.PI / 2;
-  shadow.position.y = -1.1;
-  group.add(shadow);
+  // Small top hanging string
+  const stringGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.6, 12);
+  const stringMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const string = new THREE.Mesh(stringGeo, stringMat);
+  string.position.y = 1.35;
+  lanternGroup.add(string);
 
-  group.scale.setScalar(0.75);
-  group.userData.innerLight = innerLight;
-  return group;
+  // Scale and position
+  lanternGroup.scale.set(0.9, 0.9, 0.9);
+  lanternGroup.position.set(0, 0, -2);
+
+  return lanternGroup;
 }
 
-export function animateLantern(lantern, elapsedSeconds) {
-  lantern.rotation.y += 0.007;
-  lantern.position.y += Math.sin(elapsedSeconds * 1.7) * 0.0008;
-  const light = lantern.userData.innerLight;
-  if (light) light.intensity = 1.55 + Math.sin(elapsedSeconds * 9.0) * 0.22 + Math.random() * 0.08;
+export function updateLantern(delta = 0.016) {
+  if (!lanternGroup) return;
+
+  animationTime += delta;
+
+  // Smooth rotation
+  lanternGroup.rotation.y += 0.008;
+
+  // Gentle floating movement
+  lanternGroup.position.y = Math.sin(animationTime * 1.5) * 0.08;
+
+  // Light flicker
+  if (innerLight) {
+    innerLight.intensity = 2.2 + Math.sin(animationTime * 8) * 0.45 + Math.random() * 0.15;
+  }
+
+  if (glowMaterial) {
+    glowMaterial.opacity = 0.65 + Math.sin(animationTime * 6) * 0.18;
+  }
+
+  // Tassel swinging
+  lanternGroup.children.forEach((child) => {
+    if (child.userData.swingOffset !== undefined) {
+      child.rotation.z = Math.sin(animationTime * 2 + child.userData.swingOffset) * 0.12;
+    }
+  });
 }
