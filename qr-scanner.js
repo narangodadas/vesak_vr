@@ -1,45 +1,26 @@
 export class QRScanner {
-  constructor(video, { onDetect, onError } = {}) {
-    this.video = video;
-    this.onDetect = onDetect;
-    this.onError = onError;
-    this.stream = null;
-    this.canvas = document.createElement('canvas');
-    this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
-    this.running = false;
-    this.lastData = null;
+  constructor(videoElement, onDetected) {
+    this.video = videoElement;
+    this.onDetected = onDetected;
+    this.canvas = document.createElement("canvas");
+    this.context = this.canvas.getContext("2d", { willReadFrequently: true });
+    this.isScanning = false;
+    this.lastScanTime = 0;
+    this.scanInterval = 220;
   }
-
-  async start() {
-    if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera API is not supported on this browser.');
-    this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
-    this.video.srcObject = this.stream;
-    await this.video.play();
-    this.running = true;
-    this.scanLoop();
-    return this.stream;
+  start() { this.isScanning = true; }
+  stop() { this.isScanning = false; }
+  scan() {
+    if (!this.isScanning) return;
+    if (!this.video.videoWidth || !this.video.videoHeight) return;
+    const now = performance.now();
+    if (now - this.lastScanTime < this.scanInterval) return;
+    this.lastScanTime = now;
+    this.canvas.width = this.video.videoWidth;
+    this.canvas.height = this.video.videoHeight;
+    this.context.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+    const imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+    const qrCode = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+    if (qrCode && qrCode.data) this.onDetected(qrCode.data.trim());
   }
-
-  stop() {
-    this.running = false;
-    this.stream?.getTracks().forEach(track => track.stop());
-  }
-
-  scanLoop = () => {
-    if (!this.running) return;
-    const w = this.video.videoWidth;
-    const h = this.video.videoHeight;
-    if (w && h && window.jsQR) {
-      this.canvas.width = w;
-      this.canvas.height = h;
-      this.ctx.drawImage(this.video, 0, 0, w, h);
-      const imageData = this.ctx.getImageData(0, 0, w, h);
-      const code = window.jsQR(imageData.data, w, h, { inversionAttempts: 'dontInvert' });
-      if (code?.data) {
-        this.lastData = code.data;
-        this.onDetect?.({ data: code.data, location: code.location, videoWidth: w, videoHeight: h });
-      }
-    }
-    requestAnimationFrame(this.scanLoop);
-  };
 }

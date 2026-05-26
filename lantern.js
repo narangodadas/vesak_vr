@@ -1,191 +1,118 @@
-// lantern.js
-
-let lanternGroup;
-let innerLight;
-let glowMaterial;
-let animationTime = 0;
-
 export function createLantern(type = "vesak-lantern-1") {
-  lanternGroup = new THREE.Group();
-
+  const lantern = new THREE.Group();
   const colorSets = {
-    "vesak-lantern-1": {
-      main: 0xff3366,
-      second: 0xffcc00,
-      third: 0x00ccff,
-      glow: 0xffaa33
-    },
-    "vesak-lantern-2": {
-      main: 0x00ff99,
-      second: 0xff66ff,
-      third: 0xffff33,
-      glow: 0x66ffcc
-    },
-    "vesak-lantern-3": {
-      main: 0x3366ff,
-      second: 0xff9933,
-      third: 0xff0066,
-      glow: 0xffcc66
-    }
+    "vesak-lantern-1": { main: 0xff2e78, second: 0xffc300, third: 0x00d9ff, accent: 0xffffff, glow: 0xffa533 },
+    "vesak-lantern-2": { main: 0x00e676, second: 0xd500f9, third: 0xffea00, accent: 0xffffff, glow: 0x76ff03 },
+    "vesak-lantern-3": { main: 0x2979ff, second: 0xff9100, third: 0xff1744, accent: 0xffffff, glow: 0xffd180 }
   };
+  const keys = Object.keys(colorSets);
+  const colors = colorSets[type] || colorSets[keys[Math.abs(hashText(type)) % keys.length]];
 
-  const colors = colorSets[type] || colorSets["vesak-lantern-1"];
+  lantern.userData.time = 0;
+  lantern.userData.innerLights = [];
+  lantern.userData.glowMaterials = [];
+  lantern.userData.tassels = [];
 
-  // Main octagon body
-  const bodyGeometry = new THREE.CylinderGeometry(0.65, 0.65, 1.2, 8);
-  const bodyMaterial = new THREE.MeshStandardMaterial({
-    color: colors.main,
-    transparent: true,
-    opacity: 0.72,
-    emissive: colors.main,
-    emissiveIntensity: 0.25,
-    roughness: 0.4,
-    metalness: 0.05
-  });
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.68, 0.68, 1.16, 8, 1, true),
+    new THREE.MeshStandardMaterial({ color: colors.main, emissive: colors.main, emissiveIntensity: 0.28, transparent: true, opacity: 0.62, side: THREE.DoubleSide, roughness: 0.38, metalness: 0.03 })
+  );
+  lantern.add(body);
 
-  const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-  body.position.y = 0;
-  lanternGroup.add(body);
-
-  // Colorful vertical panels
-  const panelColors = [colors.main, colors.second, colors.third, 0xffffff];
-
+  const panelColors = [colors.main, colors.second, colors.third, colors.accent, colors.second, colors.main, colors.third, colors.accent];
   for (let i = 0; i < 8; i++) {
     const angle = (i / 8) * Math.PI * 2;
-
-    const panelGeo = new THREE.BoxGeometry(0.08, 1.22, 0.02);
-    const panelMat = new THREE.MeshStandardMaterial({
-      color: panelColors[i % panelColors.length],
-      emissive: panelColors[i % panelColors.length],
-      emissiveIntensity: 0.35,
-      transparent: true,
-      opacity: 0.9
-    });
-
-    const panel = new THREE.Mesh(panelGeo, panelMat);
-    panel.position.set(
-      Math.sin(angle) * 0.66,
-      0,
-      Math.cos(angle) * 0.66
+    const panel = new THREE.Mesh(
+      new THREE.BoxGeometry(0.11, 1.18, 0.035),
+      new THREE.MeshStandardMaterial({ color: panelColors[i], emissive: panelColors[i], emissiveIntensity: 0.38, transparent: true, opacity: 0.92, roughness: 0.25 })
     );
+    panel.position.set(Math.sin(angle) * 0.69, 0, Math.cos(angle) * 0.69);
     panel.rotation.y = angle;
-    lanternGroup.add(panel);
+    lantern.add(panel);
   }
 
-  // Top cone
-  const topGeo = new THREE.ConeGeometry(0.7, 0.45, 8);
-  const topMat = new THREE.MeshStandardMaterial({
-    color: colors.second,
-    emissive: colors.second,
-    emissiveIntensity: 0.25
-  });
+  const top = createCone(colors.second, 0.7, 0.43);
+  top.position.y = 0.8;
+  lantern.add(top);
 
-  const top = new THREE.Mesh(topGeo, topMat);
-  top.position.y = 0.82;
-  lanternGroup.add(top);
-
-  // Bottom cone
-  const bottom = top.clone();
-  bottom.position.y = -0.82;
+  const bottom = createCone(colors.third, 0.7, 0.43);
+  bottom.position.y = -0.8;
   bottom.rotation.x = Math.PI;
-  lanternGroup.add(bottom);
+  lantern.add(bottom);
 
-  // Inner glowing sphere
-  const glowGeo = new THREE.SphereGeometry(0.33, 32, 32);
-  glowMaterial = new THREE.MeshBasicMaterial({
-    color: colors.glow,
-    transparent: true,
-    opacity: 0.85
-  });
+  const ringMat = new THREE.MeshStandardMaterial({ color: colors.accent, emissive: colors.accent, emissiveIntensity: 0.25 });
+  const ring1 = new THREE.Mesh(new THREE.TorusGeometry(0.69, 0.026, 16, 96), ringMat);
+  ring1.position.y = 0.59;
+  ring1.rotation.x = Math.PI / 2;
+  lantern.add(ring1);
+  const ring2 = ring1.clone(); ring2.position.y = -0.59; lantern.add(ring2);
+  const ring3 = ring1.clone(); ring3.scale.set(0.88,0.88,0.88); ring3.position.y = 0.18; lantern.add(ring3);
+  const ring4 = ring1.clone(); ring4.scale.set(0.88,0.88,0.88); ring4.position.y = -0.18; lantern.add(ring4);
 
-  const glow = new THREE.Mesh(glowGeo, glowMaterial);
-  glow.position.y = 0;
-  lanternGroup.add(glow);
+  const glowMat = new THREE.MeshBasicMaterial({ color: colors.glow, transparent: true, opacity: 0.72 });
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 32), glowMat);
+  lantern.add(glow);
+  lantern.userData.glowMaterials.push(glowMat);
+  const innerLight = new THREE.PointLight(colors.glow, 2.6, 4.5);
+  lantern.add(innerLight);
+  lantern.userData.innerLights.push(innerLight);
 
-  // Inner light
-  innerLight = new THREE.PointLight(colors.glow, 2.5, 4);
-  innerLight.position.set(0, 0, 0);
-  lanternGroup.add(innerLight);
-
-  // Decorative rings
-  const ringMat = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    emissive: 0xffffff,
-    emissiveIntensity: 0.2
-  });
-
-  const topRing = new THREE.Mesh(
-    new THREE.TorusGeometry(0.66, 0.025, 16, 100),
-    ringMat
-  );
-  topRing.position.y = 0.62;
-  topRing.rotation.x = Math.PI / 2;
-  lanternGroup.add(topRing);
-
-  const bottomRing = topRing.clone();
-  bottomRing.position.y = -0.62;
-  lanternGroup.add(bottomRing);
-
-  // Hanging tassels / strips
-  for (let i = 0; i < 12; i++) {
-    const angle = (i / 12) * Math.PI * 2;
-
-    const stripGeo = new THREE.BoxGeometry(0.035, 0.55, 0.015);
-    const stripMat = new THREE.MeshStandardMaterial({
-      color: panelColors[i % panelColors.length],
-      emissive: panelColors[i % panelColors.length],
-      emissiveIntensity: 0.3
-    });
-
-    const strip = new THREE.Mesh(stripGeo, stripMat);
-    strip.position.set(
-      Math.sin(angle) * 0.42,
-      -1.25,
-      Math.cos(angle) * 0.42
-    );
-    strip.rotation.y = angle;
-    strip.userData.swingOffset = i * 0.4;
-    lanternGroup.add(strip);
+  for (let i = 0; i < 18; i++) {
+    const angle = (i / 18) * Math.PI * 2;
+    const y = -0.42 + (i % 6) * 0.17;
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 12), new THREE.MeshBasicMaterial({ color: panelColors[i % panelColors.length] }));
+    dot.position.set(Math.sin(angle) * 0.74, y, Math.cos(angle) * 0.74);
+    lantern.add(dot);
   }
 
-  // Small top hanging string
-  const stringGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.6, 12);
-  const stringMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  const string = new THREE.Mesh(stringGeo, stringMat);
-  string.position.y = 1.35;
-  lanternGroup.add(string);
+  for (let i = 0; i < 16; i++) {
+    const angle = (i / 16) * Math.PI * 2;
+    const color = panelColors[i % panelColors.length];
+    const tassel = new THREE.Mesh(
+      new THREE.BoxGeometry(0.04, 0.58, 0.018),
+      new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.32, roughness: 0.42 })
+    );
+    tassel.position.set(Math.sin(angle) * 0.45, -1.22, Math.cos(angle) * 0.45);
+    tassel.rotation.y = angle;
+    tassel.userData.swingOffset = i * 0.35;
+    lantern.userData.tassels.push(tassel);
+    lantern.add(tassel);
+  }
 
-  // Scale and position
-  lanternGroup.scale.set(0.9, 0.9, 0.9);
-  lanternGroup.position.set(0, 0, -2);
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.75, 12), new THREE.MeshBasicMaterial({ color: colors.second }));
+  tail.position.y = -1.45;
+  lantern.add(tail);
 
-  return lanternGroup;
+  const string = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.58, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  string.position.y = 1.32;
+  lantern.add(string);
+
+  lantern.position.set(0, 0, -3);
+  lantern.scale.set(0.82, 0.82, 0.82);
+  return lantern;
 }
 
-export function updateLantern(delta = 0.016) {
-  if (!lanternGroup) return;
+export function updateLantern(lantern, delta = 0.016) {
+  if (!lantern) return;
+  lantern.userData.time += delta;
+  const t = lantern.userData.time;
+  lantern.rotation.y += delta * 0.65;
+  lantern.position.y = Math.sin(t * 1.25) * 0.08;
+  const flicker = 0.85 + Math.sin(t * 8.0) * 0.15 + Math.random() * 0.08;
+  lantern.userData.innerLights.forEach((light) => light.intensity = 2.3 * flicker);
+  lantern.userData.glowMaterials.forEach((mat) => mat.opacity = 0.58 + Math.sin(t * 5.5) * 0.18);
+  lantern.userData.tassels.forEach((tassel) => tassel.rotation.z = Math.sin(t * 2.1 + tassel.userData.swingOffset) * 0.14);
+}
 
-  animationTime += delta;
+function createCone(color, radius, height) {
+  return new THREE.Mesh(new THREE.ConeGeometry(radius, height, 8), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.3, roughness: 0.35 }));
+}
 
-  // Smooth rotation
-  lanternGroup.rotation.y += 0.008;
-
-  // Gentle floating movement
-  lanternGroup.position.y = Math.sin(animationTime * 1.5) * 0.08;
-
-  // Light flicker
-  if (innerLight) {
-    innerLight.intensity = 2.2 + Math.sin(animationTime * 8) * 0.45 + Math.random() * 0.15;
+function hashText(text) {
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    hash = (hash << 5) - hash + text.charCodeAt(i);
+    hash |= 0;
   }
-
-  if (glowMaterial) {
-    glowMaterial.opacity = 0.65 + Math.sin(animationTime * 6) * 0.18;
-  }
-
-  // Tassel swinging
-  lanternGroup.children.forEach((child) => {
-    if (child.userData.swingOffset !== undefined) {
-      child.rotation.z = Math.sin(animationTime * 2 + child.userData.swingOffset) * 0.12;
-    }
-  });
+  return hash;
 }

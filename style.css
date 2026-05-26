@@ -1,17 +1,51 @@
 * { box-sizing: border-box; }
-html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #120018; color: white; }
-#app, #arContainer { position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; }
-#cameraVideo { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-canvas { display: block; width: 100% !important; height: 100% !important; touch-action: none; }
-.overlay { position: fixed; inset: 0; display: grid; place-items: start center; padding: calc(env(safe-area-inset-top) + 22px) 18px 18px; pointer-events: none; z-index: 5; background: linear-gradient(180deg, rgba(10,0,15,.62), rgba(10,0,15,0)); transition: opacity .4s ease; }
-.overlay.fade { opacity: 0; }
-.panel { width: min(92vw, 460px); padding: 18px 20px; border: 1px solid rgba(255,255,255,.22); background: rgba(20, 0, 28, .72); backdrop-filter: blur(12px); border-radius: 22px; box-shadow: 0 16px 40px rgba(0,0,0,.35); text-align: center; }
-.panel h1 { margin: 0 0 8px; font-size: 1.35rem; }
-.panel p { margin: 4px 0; line-height: 1.35; }
-.small { font-size: .86rem; color: rgba(255,255,255,.78); }
-.controls { position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 18px); display: flex; justify-content: center; gap: 10px; z-index: 10; padding: 0 14px; }
-button, .download { border: 0; border-radius: 999px; padding: 12px 16px; color: #24002c; background: #ffe76a; font-weight: 800; text-decoration: none; box-shadow: 0 8px 24px rgba(0,0,0,.28); }
-button:active { transform: scale(.98); }
-.download { position: fixed; z-index: 11; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 76px); }
-.unsupported { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; text-align: center; background: #16001f; line-height: 1.5; }
+html, body {
+  margin: 0; padding: 0; overflow: hidden;
+  width: 100%; height: 100%; background: #160018;
+  font-family: Arial, Helvetica, sans-serif; color: white;
+}
+#cameraVideo {
+  position: fixed; inset: 0; width: 100vw; height: 100vh;
+  object-fit: cover; background: #000; z-index: 1;
+}
+#arContainer { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+#overlay {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 42px 20px;
+  background: linear-gradient(180deg, rgba(22,0,24,.94), rgba(22,0,24,.7));
+}
+.overlay-box {
+  width: min(92vw, 520px); padding: 26px 20px; text-align: center;
+  border: 2px solid rgba(255,255,255,.18); border-radius: 26px;
+  background: rgba(255,255,255,.04); box-shadow: 0 0 32px rgba(255,0,160,.18);
+  backdrop-filter: blur(8px);
+}
+.overlay-box h1 { margin: 0 0 14px; font-size: 30px; }
+.overlay-box p { margin: 8px 0; font-size: 19px; line-height: 1.35; }
+.overlay-box .small { font-size: 15px; opacity: .8; }
+#startBtn {
+  margin-top: 22px; padding: 15px 30px; border: none; border-radius: 999px;
+  color: white; font-size: 18px; font-weight: 800;
+  background: linear-gradient(45deg, #ff006e, #ffbe0b, #00f5d4);
+  box-shadow: 0 0 28px rgba(255,190,11,.38); cursor: pointer;
+}
+#startBtn:active { transform: scale(.96); }
+#statusBar {
+  position: fixed; left: 50%; top: 14px; transform: translateX(-50%);
+  z-index: 9; max-width: 92vw; padding: 10px 16px; border-radius: 999px;
+  font-size: 14px; text-align: center; background: rgba(0,0,0,.55); backdrop-filter: blur(6px);
+}
+#screenshotBtn {
+  position: fixed; right: 16px; bottom: 24px; z-index: 8;
+  padding: 12px 18px; border: none; border-radius: 999px;
+  font-size: 15px; font-weight: 700; color: white;
+  background: linear-gradient(45deg, #8338ec, #ff006e);
+  box-shadow: 0 0 22px rgba(255,0,110,.35);
+}
+#downloadLink {
+  position: fixed; left: 16px; bottom: 24px; z-index: 8;
+  padding: 12px 16px; border-radius: 999px; text-decoration: none;
+  color: white; font-size: 14px; font-weight: 700; background: rgba(0,0,0,.65);
+}
 .hidden { display: none !important; }
