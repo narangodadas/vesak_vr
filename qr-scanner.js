@@ -9,8 +9,13 @@ export class QRScanner {
     this.scanInterval = 180;
   }
 
-  start() { this.isScanning = true; }
-  stop() { this.isScanning = false; }
+  start() {
+    this.isScanning = true;
+  }
+
+  stop() {
+    this.isScanning = false;
+  }
 
   scan() {
     if (!this.isScanning) return;
@@ -25,7 +30,10 @@ export class QRScanner {
     this.context.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
 
     const imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-    const qrCode = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
+
+    const qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: "attemptBoth"
+    });
 
     if (qrCode && qrCode.data) {
       this.onDetected(qrCode.data.trim(), qrCode.location);
