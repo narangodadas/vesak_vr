@@ -31,9 +31,9 @@ let isRunning = false;
 const anchorState = {
   placed: false,
   anchorX: 0,
-  anchorY: -1.0,
-  anchorZ: -3.0,
-  scale: 0.35
+  anchorY: -1.6,
+  anchorZ: -4.5,
+  scale: 0.42
 };
 
 startBtn.addEventListener("click", async () => {
@@ -133,9 +133,15 @@ async function startCamera() {
 function setupThreeScene() {
   scene = new THREE.Scene();
 
+  // Calculate vertical FOV suitable for portrait mobile
+  // On portrait phone, aspect < 1, so we need wider vertical FOV
+  const aspect = window.innerWidth / window.innerHeight;
+  const hFovRad = (62 * Math.PI) / 180;
+  const vFovDeg = (2 * Math.atan(Math.tan(hFovRad / 2) / aspect) * 180) / Math.PI;
+
   camera = new THREE.PerspectiveCamera(
-    62,
-    window.innerWidth / window.innerHeight,
+    vFovDeg,
+    aspect,
     0.01,
     100
   );
@@ -237,9 +243,9 @@ function placeLanternAtQRLocation(qrText, qrLocation) {
     anchorState.anchorX = ((centerX / video.videoWidth) - 0.5) * 1.3;
   }
 
-  anchorState.anchorY = -1.0;
-  anchorState.anchorZ = -3.0;
-  anchorState.scale = 0.35;
+  anchorState.anchorY = -1.6;
+  anchorState.anchorZ = -4.5;
+  anchorState.scale = 0.42;
 
   camera.position.set(0, 0, 0);
   camera.rotation.set(0, 0, 0);
@@ -267,7 +273,7 @@ function placeLanternAtQRLocation(qrText, qrLocation) {
     groundShadow.visible = true;
     groundShadow.position.set(
       anchorState.anchorX,
-      -1.05,
+      -1.85,
       anchorState.anchorZ
     );
     groundShadow.scale.set(1, 1, 1);
@@ -328,9 +334,9 @@ function animate() {
 function resetAnchor() {
   anchorState.placed = false;
   anchorState.anchorX = 0;
-  anchorState.anchorY = -1.0;
-  anchorState.anchorZ = -3.0;
-  anchorState.scale = 0.35;
+  anchorState.anchorY = -1.6;
+  anchorState.anchorZ = -4.5;
+  anchorState.scale = 0.42;
 
   stopVesakMusic();
 
@@ -410,7 +416,12 @@ function disposeMaterial(mat) {
 function onResize() {
   if (!camera || !renderer) return;
 
-  camera.aspect = window.innerWidth / window.innerHeight;
+  const aspect = window.innerWidth / window.innerHeight;
+  const hFovRad = (62 * Math.PI) / 180;
+  const vFovDeg = (2 * Math.atan(Math.tan(hFovRad / 2) / aspect) * 180) / Math.PI;
+
+  camera.fov = vFovDeg;
+  camera.aspect = aspect;
   camera.updateProjectionMatrix();
 
   renderer.setSize(window.innerWidth, window.innerHeight);
