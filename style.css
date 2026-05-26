@@ -9,7 +9,7 @@ body {
   overflow: hidden;
   width: 100%;
   height: 100%;
-  background: #160018;
+  background: #062f35;
   font-family: Arial, Helvetica, sans-serif;
   color: white;
   touch-action: none;
@@ -36,55 +36,63 @@ body {
   position: fixed;
   inset: 0;
   z-index: 10;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 42px 20px;
-  background: linear-gradient(180deg, rgba(22, 0, 24, 0.94), rgba(22, 0, 24, 0.7));
+  background: #062f35;
+  overflow: hidden;
 }
 
-.overlay-box {
-  width: min(92vw, 540px);
-  padding: 26px 20px;
-  text-align: center;
-  border: 2px solid rgba(255, 255, 255, 0.18);
-  border-radius: 26px;
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 0 36px rgba(255, 0, 160, 0.22);
-  backdrop-filter: blur(8px);
+.home-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  animation: pageEnter 0.9s ease-out;
 }
 
-.overlay-box h1 {
-  margin: 0 0 14px;
-  font-size: 30px;
+.home-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.overlay-box p {
-  margin: 8px 0;
-  font-size: 18px;
-  line-height: 1.35;
+.home-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at center, rgba(255, 178, 39, 0.08), transparent 45%),
+    linear-gradient(to bottom, rgba(5, 42, 48, 0.05), rgba(5, 42, 48, 0.58));
+  pointer-events: none;
 }
 
-.overlay-box .small {
-  font-size: 15px;
-  opacity: 0.82;
-}
-
-#startBtn {
-  margin-top: 22px;
-  padding: 15px 30px;
+.scan-btn {
+  position: absolute;
+  left: 50%;
+  bottom: 42px;
+  transform: translateX(-50%);
+  z-index: 2;
+  min-width: 230px;
+  padding: 17px 30px;
   border: none;
   border-radius: 999px;
-  color: white;
+  color: #062f35;
   font-size: 18px;
-  font-weight: 800;
-  background: linear-gradient(45deg, #ff006e, #ffbe0b, #00f5d4);
-  box-shadow: 0 0 30px rgba(255, 190, 11, 0.42);
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  background: linear-gradient(135deg, #fff4c2, #ffb22b, #ff7a18);
+  box-shadow:
+    0 0 24px rgba(255, 178, 43, 0.7),
+    0 10px 28px rgba(0, 0, 0, 0.35);
   cursor: pointer;
+  animation: buttonFloat 2.2s ease-in-out infinite, buttonGlow 1.8s ease-in-out infinite;
 }
 
-#startBtn:active {
-  transform: scale(0.96);
+.scan-btn:active {
+  transform: translateX(-50%) scale(0.94);
+}
+
+.scan-icon {
+  margin-right: 8px;
 }
 
 #statusBar {
@@ -98,8 +106,10 @@ body {
   border-radius: 999px;
   font-size: 14px;
   text-align: center;
-  background: rgba(0, 0, 0, 0.58);
-  backdrop-filter: blur(6px);
+  background: rgba(6, 47, 53, 0.72);
+  color: #fff4c2;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 18px rgba(255, 178, 43, 0.22);
 }
 
 #controlPanel {
@@ -118,14 +128,14 @@ body {
   border: none;
   border-radius: 999px;
   font-size: 14px;
-  font-weight: 800;
-  color: white;
-  background: linear-gradient(45deg, #8338ec, #ff006e);
-  box-shadow: 0 0 22px rgba(255, 0, 110, 0.35);
+  font-weight: 900;
+  color: #062f35;
+  background: linear-gradient(135deg, #fff4c2, #ffb22b);
+  box-shadow: 0 0 22px rgba(255, 178, 43, 0.38);
 }
 
 #resetAnchorBtn {
-  background: linear-gradient(45deg, #00bbf9, #00f5d4) !important;
+  background: linear-gradient(135deg, #f7a1c4, #ffcf6b) !important;
 }
 
 #downloadLink {
@@ -136,12 +146,47 @@ body {
   padding: 12px 16px;
   border-radius: 999px;
   text-decoration: none;
-  color: white;
+  color: #fff4c2;
   font-size: 14px;
   font-weight: 700;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(6, 47, 53, 0.8);
 }
 
 .hidden {
   display: none !important;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes buttonFloat {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-8px);
+  }
+}
+
+@keyframes buttonGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 22px rgba(255, 178, 43, 0.62),
+      0 10px 28px rgba(0, 0, 0, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 38px rgba(255, 218, 115, 0.95),
+      0 12px 32px rgba(0, 0, 0, 0.38);
+  }
 }

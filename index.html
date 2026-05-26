@@ -7,19 +7,18 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Camera background -->
   <video id="cameraVideo" autoplay playsinline muted></video>
 
-  <!-- Three.js transparent AR layer -->
   <div id="arContainer"></div>
 
-  <!-- Start overlay -->
   <div id="overlay">
-    <div class="overlay-box">
-      <h1>Vesak AR Lantern</h1>
-      <p>Scan the QR code on the floor. The lantern will stay fixed at that location.</p>
-      <p class="small">Tap Start Camera and allow camera permission.</p>
-      <button id="startBtn">Start Camera</button>
+    <div class="home-screen">
+      <img src="assets/home final.jpg" alt="Vesak Day" class="home-image" />
+
+      <button id="startBtn" class="scan-btn">
+        <span class="scan-icon">✨</span>
+        Scan Lantern
+      </button>
     </div>
   </div>
 
@@ -32,11 +31,9 @@
 
   <a id="downloadLink" class="hidden" download="vesak-ar-lantern.png">Download Screenshot</a>
 
-  <!-- Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
-  <!-- App -->
   <script type="module" src="main.js"></script>
 </body>
 </html>

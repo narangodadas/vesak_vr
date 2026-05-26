@@ -52,7 +52,7 @@ screenshotBtn.addEventListener("click", () => {
 
 async function safeStartApp() {
   startBtn.disabled = true;
-  startBtn.textContent = "Starting...";
+  startBtn.textContent = "Scanning...";
   statusBar.textContent = "Starting camera...";
 
   try {
