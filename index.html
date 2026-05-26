@@ -13,14 +13,19 @@
   <div id="overlay">
     <div class="overlay-box">
       <h1>Vesak AR Lantern</h1>
-      <p>Scan a QR code to see a colourful 3D Vesak lantern.</p>
-      <p class="small">Tap the button and allow camera permission.</p>
+      <p>Scan the QR on the floor. The lantern will stay fixed like a real object.</p>
+      <p class="small">Tap Start Camera and allow camera permission.</p>
       <button id="startBtn">Start Camera</button>
     </div>
   </div>
 
   <div id="statusBar">Ready</div>
-  <button id="screenshotBtn" class="hidden">📸 Screenshot</button>
+
+  <div id="controlPanel" class="hidden">
+    <button id="resetAnchorBtn">Reset Anchor</button>
+    <button id="screenshotBtn">📸 Screenshot</button>
+  </div>
+
   <a id="downloadLink" class="hidden" download="vesak-ar-lantern.png">Download Screenshot</a>
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>

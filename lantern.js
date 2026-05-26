@@ -251,8 +251,8 @@ export function createLantern(type = "vesak-lantern-1") {
   });
 
   // ---- final placement -----------------------------------------------------
-  lantern.position.set(0, 0.5, -3);
-  lantern.scale.setScalar(0.5);
+  lantern.position.set(0, 0, -3);
+  lantern.scale.setScalar(0.45);
   return lantern;
 }
 
