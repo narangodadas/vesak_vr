@@ -23,14 +23,15 @@ let groundShadow = null;
 let animationFrameId = null;
 let isRunning = false;
 
-// Fixed screen-stable QR anchor.
-// Lantern moved lower to avoid browser header crop.
+// Screen-stable QR anchor.
+// Phone 360/orientation view removed.
+// Lantern itself still rotates.
 const anchorState = {
   placed: false,
   anchorX: 0,
-  anchorY: -0.75,
+  anchorY: 0.30,
   anchorZ: -3.0,
-  scale: 0.42
+  scale: 0.48
 };
 
 startBtn.addEventListener("click", async () => {
@@ -54,6 +55,7 @@ async function safeStartApp() {
 
   try {
     stopCameraOnly();
+
     await startCamera();
 
     if (!renderer) {
@@ -201,6 +203,7 @@ function setupQRScanner() {
 
   qrScanner = new QRScanner(video, (qrText, qrLocation) => {
     if (!qrText || anchorState.placed) return;
+
     placeLanternAtQRLocation(qrText, qrLocation);
   });
 
@@ -209,6 +212,7 @@ function setupQRScanner() {
 
 function placeLanternAtQRLocation(qrText, qrLocation) {
   anchorState.placed = true;
+
   anchorState.anchorX = 0;
 
   if (qrLocation && video.videoWidth) {
@@ -223,10 +227,9 @@ function placeLanternAtQRLocation(qrText, qrLocation) {
     anchorState.anchorX = ((centerX / video.videoWidth) - 0.5) * 1.3;
   }
 
-  // Lower position to prevent top crop.
-  anchorState.anchorY = -0.75;
+  anchorState.anchorY = 0.30;
   anchorState.anchorZ = -3.0;
-  anchorState.scale = 0.42;
+  anchorState.scale = 0.48;
 
   camera.position.set(0, 0, 0);
   camera.rotation.set(0, 0, 0);
@@ -237,13 +240,11 @@ function placeLanternAtQRLocation(qrText, qrLocation) {
   }
 
   currentLantern = createLantern(qrText);
-
   currentLantern.position.set(
     anchorState.anchorX,
     anchorState.anchorY,
     anchorState.anchorZ
   );
-
   currentLantern.scale.setScalar(anchorState.scale);
 
   scene.add(currentLantern);
@@ -266,8 +267,9 @@ function placeLanternAtQRLocation(qrText, qrLocation) {
 }
 
 function updateCameraAndAnchor() {
-  // Keep camera fixed.
-  // This removes phone 360 movement.
+  // IMPORTANT FIX:
+  // Do not rotate camera using phone orientation.
+  // This removes user 360-view around lantern.
   camera.position.set(0, 0, 0);
   camera.rotation.set(0, 0, 0);
 
@@ -315,9 +317,9 @@ function animate() {
 function resetAnchor() {
   anchorState.placed = false;
   anchorState.anchorX = 0;
-  anchorState.anchorY = -0.75;
+  anchorState.anchorY = 0.30;
   anchorState.anchorZ = -3.0;
-  anchorState.scale = 0.42;
+  anchorState.scale = 0.48;
 
   camera.position.set(0, 0, 0);
   camera.rotation.set(0, 0, 0);
