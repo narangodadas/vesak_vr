@@ -1,32 +1,16 @@
-# Vesak AR Lantern — Distance Fixed Version
+# Vesak AR Lantern — World Anchor Update
 
-## Fixes
+## New behavior
 
-- Lantern no longer stays too large.
-- Close distance = lantern becomes large.
-- Far distance = lantern becomes small.
-- Added visible Distance HUD.
-- Added Closer / Farther buttons.
-- One finger vertical drag changes distance:
-  - Drag down = closer / bigger
-  - Drag up = farther / smaller
+1. User scans QR on the floor.
+2. Lantern appears at a fixed pseudo-world location.
+3. Phone movement/orientation changes viewing side.
+4. Near = lantern looks bigger. Far = lantern looks smaller.
+5. Reset Anchor lets user scan again.
 
-## Why buttons/drag are included
+## Important limitation
 
-Normal mobile browser camera access does not provide true ARCore/ARKit position tracking.
-So the app cannot reliably know if the user physically walked backward.
-
-This version uses stable virtual distance controls to give the correct real-life distance effect.
-
-## Run
-
-Deploy to Vercel, or locally:
-
-```bash
-npx http-server -p 5000
-```
-
-Use HTTPS on mobile.
+This is browser-only pseudo-world tracking, not true ARCore/ARKit SLAM. True physical tracking needs WebXR immersive AR support, which is not reliable across normal iOS Safari.
 
 ## QR values
 
@@ -35,3 +19,17 @@ vesak-lantern-1
 vesak-lantern-2
 vesak-lantern-3
 ```
+
+## Deploy
+
+```bash
+git add .
+git commit -m "world anchor AR update"
+git push
+```
+
+Vercel will auto-update your same live link.
+
+## Test
+
+Open Vercel HTTPS link on phone, tap Start Camera, allow camera/motion permission, scan QR, then move phone around. Drag up/down with one finger to manually simulate far/near movement if sensor distance is weak.
