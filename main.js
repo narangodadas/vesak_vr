@@ -69,8 +69,7 @@ async function safeStartApp() {
     controlPanel.classList.remove("hidden");
 
     isRunning = true;
-    statusBar.textContent = "Camera started. Scan the floor QR.";
-
+statusBar.textContent = "Point camera at QR code";
     animate();
   } catch (error) {
     console.error("Start error:", error);
@@ -278,7 +277,7 @@ function placeLanternAtQRLocation(qrText, qrLocation) {
     qrScanner.stop();
   }
 
-  statusBar.textContent = `Lantern fixed from QR: ${qrText}`;
+ statusBar.classList.add("hidden");
 }
 
 function updateCameraAndAnchor() {
@@ -352,7 +351,8 @@ function resetAnchor() {
     qrScanner.start();
   }
 
-  statusBar.textContent = "Anchor reset. Scan QR again.";
+  statusBar.classList.remove("hidden");
+statusBar.textContent = "Ready to scan";
 }
 
 function stopCameraOnly() {
