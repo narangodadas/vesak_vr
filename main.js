@@ -23,28 +23,14 @@ let groundShadow = null;
 let animationFrameId = null;
 let isRunning = false;
 
-// Pseudo world anchor:
-// distance scaling is removed.
-// The lantern keeps one fixed pseudo-location after QR scan.
+// Screen-stable QR anchor.
+// Phone 360/orientation view removed.
+// Lantern itself still rotates.
 const anchorState = {
   placed: false,
-
-  // orientation baseline captured when QR is scanned
-  baseAlpha: null,
-  baseBeta: null,
-  baseGamma: null,
-
-  // live camera orientation relative to scan moment
-  yaw: 0,
-  pitch: 0,
-  roll: 0,
-
-  // fixed QR/world position
   anchorX: 0,
   anchorY: 0.15,
   anchorZ: -3.0,
-
-  // constant size — no distance feature
   scale: 0.48
 };
 
@@ -70,7 +56,6 @@ async function safeStartApp() {
   try {
     stopCameraOnly();
 
-    await requestOrientationPermissionIfNeeded();
     await startCamera();
 
     if (!renderer) {
@@ -97,41 +82,6 @@ async function safeStartApp() {
       "Camera failed. Use HTTPS, allow Camera permission, close other camera apps, then refresh."
     );
   }
-}
-
-async function requestOrientationPermissionIfNeeded() {
-  // iOS Safari asks orientation permission only after user gesture.
-  if (
-    typeof DeviceOrientationEvent !== "undefined" &&
-    typeof DeviceOrientationEvent.requestPermission === "function"
-  ) {
-    try {
-      await DeviceOrientationEvent.requestPermission();
-    } catch (error) {
-      console.warn("Orientation permission failed:", error);
-    }
-  }
-
-  window.addEventListener("deviceorientation", onDeviceOrientation, true);
-}
-
-function onDeviceOrientation(event) {
-  const alpha = event.alpha ?? 0;
-  const beta = event.beta ?? 0;
-  const gamma = event.gamma ?? 0;
-
-  // Before anchor, just keep current values ready.
-  if (!anchorState.placed) return;
-
-  if (anchorState.baseAlpha === null) {
-    anchorState.baseAlpha = alpha;
-    anchorState.baseBeta = beta;
-    anchorState.baseGamma = gamma;
-  }
-
-  anchorState.yaw = THREE.MathUtils.degToRad(alpha - anchorState.baseAlpha);
-  anchorState.pitch = THREE.MathUtils.degToRad(beta - anchorState.baseBeta);
-  anchorState.roll = THREE.MathUtils.degToRad(gamma - anchorState.baseGamma);
 }
 
 async function startCamera() {
@@ -191,6 +141,7 @@ function setupThreeScene() {
   );
 
   camera.position.set(0, 0, 0);
+  camera.rotation.set(0, 0, 0);
   camera.rotation.order = "YXZ";
 
   renderer = new THREE.WebGLRenderer({
@@ -201,7 +152,10 @@ function setupThreeScene() {
 
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.outputEncoding = THREE.sRGBEncoding;
+
+  if (renderer.outputEncoding !== undefined) {
+    renderer.outputEncoding = THREE.sRGBEncoding;
+  }
 
   arContainer.innerHTML = "";
   arContainer.appendChild(renderer.domElement);
@@ -259,17 +213,6 @@ function setupQRScanner() {
 function placeLanternAtQRLocation(qrText, qrLocation) {
   anchorState.placed = true;
 
-  // Reset orientation baseline at QR scan time.
-  // After this, rotating the phone changes viewing angle,
-  // but the lantern remains in the same pseudo-location.
-  anchorState.baseAlpha = null;
-  anchorState.baseBeta = null;
-  anchorState.baseGamma = null;
-  anchorState.yaw = 0;
-  anchorState.pitch = 0;
-  anchorState.roll = 0;
-
-  // Use QR horizontal screen position to estimate left/right anchor.
   anchorState.anchorX = 0;
 
   if (qrLocation && video.videoWidth) {
@@ -284,11 +227,12 @@ function placeLanternAtQRLocation(qrText, qrLocation) {
     anchorState.anchorX = ((centerX / video.videoWidth) - 0.5) * 1.3;
   }
 
-  // Fixed pseudo-world location.
-  // No distance scaling. No closer/farther.
   anchorState.anchorY = 0.15;
   anchorState.anchorZ = -3.0;
   anchorState.scale = 0.48;
+
+  camera.position.set(0, 0, 0);
+  camera.rotation.set(0, 0, 0);
 
   if (currentLantern) {
     scene.remove(currentLantern);
@@ -319,26 +263,24 @@ function placeLanternAtQRLocation(qrText, qrLocation) {
     qrScanner.stop();
   }
 
-  statusBar.textContent = `Lantern anchored at QR location: ${qrText}`;
+  statusBar.textContent = `Lantern fixed from QR: ${qrText}`;
 }
 
 function updateCameraAndAnchor() {
-  // Camera rotates based on phone orientation.
-  // This creates location-fixed feel instead of screen-fixed feel.
-  camera.rotation.y = -anchorState.yaw;
-  camera.rotation.x = -anchorState.pitch * 0.35;
-  camera.rotation.z = -anchorState.roll * 0.18;
+  // IMPORTANT FIX:
+  // Do not rotate camera using phone orientation.
+  // This removes user 360-view around lantern.
+  camera.position.set(0, 0, 0);
+  camera.rotation.set(0, 0, 0);
 
   if (!currentLantern || !anchorState.placed) return;
 
-  // Keep lantern at fixed pseudo-world coordinates.
   currentLantern.position.set(
     anchorState.anchorX,
     anchorState.anchorY,
     anchorState.anchorZ
   );
 
-  // Constant size: distance feature removed.
   currentLantern.scale.setScalar(anchorState.scale);
 
   if (groundShadow) {
@@ -374,12 +316,13 @@ function animate() {
 
 function resetAnchor() {
   anchorState.placed = false;
-  anchorState.baseAlpha = null;
-  anchorState.baseBeta = null;
-  anchorState.baseGamma = null;
-  anchorState.yaw = 0;
-  anchorState.pitch = 0;
-  anchorState.roll = 0;
+  anchorState.anchorX = 0;
+  anchorState.anchorY = 0.15;
+  anchorState.anchorZ = -3.0;
+  anchorState.scale = 0.48;
+
+  camera.position.set(0, 0, 0);
+  camera.rotation.set(0, 0, 0);
 
   if (currentLantern) {
     scene.remove(currentLantern);
