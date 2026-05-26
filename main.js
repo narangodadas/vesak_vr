@@ -28,12 +28,18 @@ let groundShadow = null;
 let animationFrameId = null;
 let isRunning = false;
 
+// Device orientation state
+const deviceOrientation = { alpha: 0, beta: 90, gamma: 0 };
+let orientationListener = null;
+let orientationPermissionGranted = false;
+
+// World-space anchor (set once when QR is detected, never changes)
 const anchorState = {
   placed: false,
-  anchorX: 0,
-  anchorY: -1.6,
-  anchorZ: -4.5,
-  scale: 0.42
+  worldX: 0,
+  worldY: 0,
+  worldZ: -2.5,
+  scale: 0.65
 };
 
 startBtn.addEventListener("click", async () => {
@@ -50,6 +56,69 @@ screenshotBtn.addEventListener("click", () => {
   }
 });
 
+// ─── Device Orientation ───────────────────────────────────────────────────────
+
+function degToRad(d) { return d * Math.PI / 180; }
+
+function startOrientationTracking() {
+  if (orientationListener) return;
+
+  function onOrientation(e) {
+    deviceOrientation.alpha = e.alpha || 0;  // compass heading
+    deviceOrientation.beta  = e.beta  ?? 90; // front-back tilt (90 = vertical)
+    deviceOrientation.gamma = e.gamma || 0;  // left-right tilt
+  }
+
+  if (
+    typeof DeviceOrientationEvent !== "undefined" &&
+    typeof DeviceOrientationEvent.requestPermission === "function"
+  ) {
+    // iOS 13+ needs explicit permission
+    DeviceOrientationEvent.requestPermission()
+      .then((state) => {
+        if (state === "granted") {
+          orientationPermissionGranted = true;
+          window.addEventListener("deviceorientation", onOrientation, true);
+          orientationListener = onOrientation;
+        }
+      })
+      .catch(console.warn);
+  } else {
+    // Android & older iOS — no permission needed
+    window.addEventListener("deviceorientation", onOrientation, true);
+    orientationListener = onOrientation;
+    orientationPermissionGranted = true;
+  }
+}
+
+function stopOrientationTracking() {
+  if (orientationListener) {
+    window.removeEventListener("deviceorientation", orientationListener, true);
+    orientationListener = null;
+  }
+}
+
+/**
+ * Apply device orientation to the Three.js camera using Euler angles.
+ * Three.js camera looks down -Z by default.
+ * DeviceOrientation: alpha=yaw, beta=pitch, gamma=roll (all in degrees).
+ * We use order "YXZ" which matches yaw→pitch→roll for a held phone.
+ */
+function applyCameraOrientation() {
+  if (!camera) return;
+
+  // When phone is held vertically, beta≈90. We subtract 90 so that
+  // "phone held straight up" = camera looking straight ahead (0 pitch).
+  const alpha = degToRad(deviceOrientation.alpha); // yaw   (around Y)
+  const beta  = degToRad(deviceOrientation.beta - 90); // pitch (around X)
+  const gamma = degToRad(deviceOrientation.gamma); // roll  (around Z)
+
+  // rotation.order must be "YXZ" (set in setupThreeScene)
+  camera.rotation.set(beta, -alpha, -gamma, "YXZ");
+}
+
+// ─── App lifecycle ────────────────────────────────────────────────────────────
+
 async function safeStartApp() {
   startBtn.disabled = true;
   startBtn.textContent = "Scanning...";
@@ -63,21 +132,20 @@ async function safeStartApp() {
       setupThreeScene();
     }
 
+    startOrientationTracking();
     setupQRScanner();
 
     overlay.classList.add("hidden");
     controlPanel.classList.remove("hidden");
 
     isRunning = true;
-statusBar.textContent = "Point camera at QR code";
+    statusBar.textContent = "Point camera at QR code";
     animate();
   } catch (error) {
     console.error("Start error:", error);
-
     startBtn.disabled = false;
     startBtn.textContent = "Start Camera";
     statusBar.textContent = "Camera failed.";
-
     alert(
       "Camera failed. Use HTTPS, allow Camera permission, close other camera apps, then refresh."
     );
@@ -106,10 +174,7 @@ async function startCamera() {
       },
       audio: false
     },
-    {
-      video: true,
-      audio: false
-    }
+    { video: true, audio: false }
   ];
 
   let lastError = null;
@@ -133,22 +198,15 @@ async function startCamera() {
 function setupThreeScene() {
   scene = new THREE.Scene();
 
-  // Calculate vertical FOV suitable for portrait mobile
-  // On portrait phone, aspect < 1, so we need wider vertical FOV
+  // Vertical FOV derived from a 62° horizontal FOV so portrait phones
+  // see the full lantern without top/bottom clipping.
   const aspect = window.innerWidth / window.innerHeight;
   const hFovRad = (62 * Math.PI) / 180;
   const vFovDeg = (2 * Math.atan(Math.tan(hFovRad / 2) / aspect) * 180) / Math.PI;
 
-  camera = new THREE.PerspectiveCamera(
-    vFovDeg,
-    aspect,
-    0.01,
-    100
-  );
-
+  camera = new THREE.PerspectiveCamera(vFovDeg, aspect, 0.01, 100);
   camera.position.set(0, 0, 0);
-  camera.rotation.set(0, 0, 0);
-  camera.rotation.order = "YXZ";
+  camera.rotation.order = "YXZ"; // must match applyCameraOrientation
 
   renderer = new THREE.WebGLRenderer({
     alpha: true,
@@ -227,28 +285,67 @@ function stopVesakMusic() {
   vesakMusic.currentTime = 0;
 }
 
-function placeLanternAtQRLocation(qrText, qrLocation) {
-  anchorState.placed = true;
-  anchorState.anchorX = 0;
+// ─── QR → World Position ──────────────────────────────────────────────────────
 
-  if (qrLocation && video.videoWidth) {
-    const centerX =
-      (
-        qrLocation.topLeftCorner.x +
-        qrLocation.topRightCorner.x +
-        qrLocation.bottomLeftCorner.x +
-        qrLocation.bottomRightCorner.x
-      ) / 4;
+/**
+ * Convert a QR code's screen-center pixel into a world-space position.
+ *
+ * Strategy:
+ *  1. Normalise the QR centre to NDC [-1, +1].
+ *  2. Unproject through the current camera to get a ray direction.
+ *  3. Place the lantern along that ray at a fixed depth (PLACE_DEPTH metres).
+ *
+ * Because the world position is stored once and never updated, the lantern
+ * stays fixed in world space even when the phone moves.
+ */
+function qrScreenToWorldPosition(qrLocation) {
+  const PLACE_DEPTH = 2.5; // metres in front of camera at scan moment
 
-    anchorState.anchorX = ((centerX / video.videoWidth) - 0.5) * 1.3;
+  // ── 1. Find QR centre in video pixels ──────────────────────────────────────
+  let px = video.videoWidth  / 2;
+  let py = video.videoHeight / 2;
+
+  if (qrLocation && video.videoWidth && video.videoHeight) {
+    px = (
+      qrLocation.topLeftCorner.x  + qrLocation.topRightCorner.x  +
+      qrLocation.bottomLeftCorner.x + qrLocation.bottomRightCorner.x
+    ) / 4;
+    py = (
+      qrLocation.topLeftCorner.y  + qrLocation.topRightCorner.y  +
+      qrLocation.bottomLeftCorner.y + qrLocation.bottomRightCorner.y
+    ) / 4;
   }
 
-  anchorState.anchorY = -1.6;
-  anchorState.anchorZ = -4.5;
-  anchorState.scale = 0.42;
+  // ── 2. Map video pixels → renderer NDC ─────────────────────────────────────
+  // The video feed may have a different aspect ratio than the canvas.
+  // We map proportionally so the NDC matches what the user actually sees.
+  const ndcX =  (px / video.videoWidth)  * 2 - 1;
+  const ndcY = -(py / video.videoHeight) * 2 + 1; // Y is flipped in NDC
 
-  camera.position.set(0, 0, 0);
-  camera.rotation.set(0, 0, 0);
+  // ── 3. Unproject to get world-space ray direction ──────────────────────────
+  const vec = new THREE.Vector3(ndcX, ndcY, 0.5);
+  vec.unproject(camera); // now in world space on the near plane
+  vec.sub(camera.position).normalize(); // ray direction
+
+  // ── 4. Walk along the ray for PLACE_DEPTH units ────────────────────────────
+  const worldPos = new THREE.Vector3().addVectors(
+    camera.position,
+    vec.multiplyScalar(PLACE_DEPTH)
+  );
+
+  return worldPos;
+}
+
+function placeLanternAtQRLocation(qrText, qrLocation) {
+  anchorState.placed = true;
+
+  // Compute world position from QR screen coords + current camera orientation
+  const worldPos = qrScreenToWorldPosition(qrLocation);
+
+  anchorState.worldX = worldPos.x;
+  anchorState.worldY = worldPos.y;
+  anchorState.worldZ = worldPos.z;
+  anchorState.scale  = 0.65;
 
   if (currentLantern) {
     scene.remove(currentLantern);
@@ -256,15 +353,8 @@ function placeLanternAtQRLocation(qrText, qrLocation) {
   }
 
   currentLantern = createLantern(qrText);
-
-  currentLantern.position.set(
-    anchorState.anchorX,
-    anchorState.anchorY,
-    anchorState.anchorZ
-  );
-
+  currentLantern.position.set(anchorState.worldX, anchorState.worldY, anchorState.worldZ);
   currentLantern.scale.setScalar(anchorState.scale);
-
   scene.add(currentLantern);
 
   playVesakMusic();
@@ -272,9 +362,9 @@ function placeLanternAtQRLocation(qrText, qrLocation) {
   if (groundShadow) {
     groundShadow.visible = true;
     groundShadow.position.set(
-      anchorState.anchorX,
-      -1.85,
-      anchorState.anchorZ
+      anchorState.worldX,
+      anchorState.worldY - 0.85,
+      anchorState.worldZ
     );
     groundShadow.scale.set(1, 1, 1);
   }
@@ -283,31 +373,10 @@ function placeLanternAtQRLocation(qrText, qrLocation) {
     qrScanner.stop();
   }
 
- statusBar.classList.add("hidden");
+  statusBar.classList.add("hidden");
 }
 
-function updateCameraAndAnchor() {
-  camera.position.set(0, 0, 0);
-  camera.rotation.set(0, 0, 0);
-
-  if (!currentLantern || !anchorState.placed) return;
-
-  currentLantern.position.set(
-    anchorState.anchorX,
-    anchorState.anchorY,
-    anchorState.anchorZ
-  );
-
-  currentLantern.scale.setScalar(anchorState.scale);
-
-  if (groundShadow) {
-    groundShadow.position.set(
-      anchorState.anchorX,
-      -1.05,
-      anchorState.anchorZ
-    );
-  }
-}
+// ─── Animation loop ───────────────────────────────────────────────────────────
 
 function animate() {
   if (!isRunning) return;
@@ -316,11 +385,12 @@ function animate() {
 
   const delta = clock ? clock.getDelta() : 0.016;
 
+  // Rotate camera based on device orientation every frame
+  applyCameraOrientation();
+
   if (qrScanner) {
     qrScanner.scan();
   }
-
-  updateCameraAndAnchor();
 
   if (currentLantern) {
     updateLantern(currentLantern, delta);
@@ -331,17 +401,16 @@ function animate() {
   }
 }
 
+// ─── Reset ────────────────────────────────────────────────────────────────────
+
 function resetAnchor() {
   anchorState.placed = false;
-  anchorState.anchorX = 0;
-  anchorState.anchorY = -1.6;
-  anchorState.anchorZ = -4.5;
-  anchorState.scale = 0.42;
+  anchorState.worldX = 0;
+  anchorState.worldY = 0;
+  anchorState.worldZ = -2.5;
+  anchorState.scale  = 0.65;
 
   stopVesakMusic();
-
-  camera.position.set(0, 0, 0);
-  camera.rotation.set(0, 0, 0);
 
   if (currentLantern) {
     scene.remove(currentLantern);
@@ -358,8 +427,10 @@ function resetAnchor() {
   }
 
   statusBar.classList.remove("hidden");
-statusBar.textContent = "Ready to scan";
+  statusBar.textContent = "Ready to scan";
 }
+
+// ─── Camera stop / dispose ────────────────────────────────────────────────────
 
 function stopCameraOnly() {
   if (qrScanner) {
@@ -382,6 +453,7 @@ function stopApp() {
   isRunning = false;
 
   stopVesakMusic();
+  stopOrientationTracking();
 
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId);
@@ -393,9 +465,7 @@ function stopApp() {
 
 function disposeObject(obj) {
   obj.traverse((child) => {
-    if (child.geometry) {
-      child.geometry.dispose();
-    }
+    if (child.geometry) child.geometry.dispose();
 
     if (child.material) {
       if (Array.isArray(child.material)) {
