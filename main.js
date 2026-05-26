@@ -33,7 +33,7 @@ const anchorState = {
   anchorX: 0,
   anchorY: -1.0,
   anchorZ: -3.0,
-  scale: 0.42
+  scale: 0.2
 };
 
 startBtn.addEventListener("click", async () => {
@@ -239,7 +239,7 @@ function placeLanternAtQRLocation(qrText, qrLocation) {
 
   anchorState.anchorY = -1.0;
   anchorState.anchorZ = -3.0;
-  anchorState.scale = 0.42;
+  anchorState.scale = 0.2;
 
   camera.position.set(0, 0, 0);
   camera.rotation.set(0, 0, 0);
@@ -330,7 +330,7 @@ function resetAnchor() {
   anchorState.anchorX = 0;
   anchorState.anchorY = -1.0;
   anchorState.anchorZ = -3.0;
-  anchorState.scale = 0.42;
+  anchorState.scale = 0.2;
 
   stopVesakMusic();
 
