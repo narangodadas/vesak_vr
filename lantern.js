@@ -13,7 +13,7 @@ const _texCache = new Map();
 export const LANTERN_MUSIC_TRACKS = {
   "vesak-lantern-1": "assets/vesak-music.mp3",
   "vesak-lantern-2": "assets/vesak music3.mp3",
-  "vesak-lantern-3": "assets/vesak music2.mp3",
+  "vesak-lantern-3": "assets/vesak-music.mp3",
   "vesak-lantern-4": "assets/vesak-music.mp3",
   "vesak-lantern-5": "assets/vesak-music.mp3"
 };
@@ -183,12 +183,14 @@ export function createLantern(type = "vesak-lantern-1") {
       { y: -2.64, rT: 0.96, rB: 1.06, h: 0.13 },
     ].forEach(d => {
       // Disc body — hot pink
-      part3Bottom.add(new THREE.Mesh(
+      const discMesh = new THREE.Mesh(
         new THREE.CylinderGeometry(d.rT, d.rB, d.h, 64, 1, false),
         new THREE.MeshStandardMaterial({
           color: c.light, emissive: c.light, emissiveIntensity: 0.9, roughness: 0.35
         })
-      )).position.y = d.y;
+      );
+      discMesh.position.y = d.y;
+      part3Bottom.add(discMesh);
 
       // Gold outer dot ring
       glowRing(part3Bottom, d.y + d.h / 2 + 0.01, d.rT * 0.90, 0.022, c.trim, 1.0);
@@ -347,26 +349,32 @@ export function createLantern(type = "vesak-lantern-1") {
         const g = new THREE.Group();
 
         // Thread
-        g.add(Object.assign(new THREE.Mesh(
+        const ballThread = new THREE.Mesh(
           new THREE.CylinderGeometry(0.004, 0.004, 0.26, 6),
           new THREE.MeshStandardMaterial({ color: 0xaaaaaa, emissiveIntensity: 0 })
-        ), { position: new THREE.Vector3(0, -0.13, 0) }));
+        );
+        ballThread.position.y = -0.13;
+        g.add(ballThread);
 
         // Main ball
-        g.add(Object.assign(new THREE.Mesh(
+        const mainBall = new THREE.Mesh(
           new THREE.SphereGeometry(0.068, 12, 12),
           new THREE.MeshStandardMaterial({
             color: ballCol, emissive: ballCol, emissiveIntensity: 1.0, roughness: 0.28
           })
-        ), { position: new THREE.Vector3(0, -0.32, 0) }));
+        );
+        mainBall.position.y = -0.32;
+        g.add(mainBall);
 
         // Small bead
-        g.add(Object.assign(new THREE.Mesh(
+        const smallBead = new THREE.Mesh(
           new THREE.SphereGeometry(0.025, 8, 8),
           new THREE.MeshStandardMaterial({
             color: beadCol, emissive: beadCol, emissiveIntensity: 0.75
           })
-        ), { position: new THREE.Vector3(0, -0.44, 0) }));
+        );
+        smallBead.position.y = -0.44;
+        g.add(smallBead);
 
         g.position.set(Math.sin(angle) * ring.radius, ring.y, Math.cos(angle) * ring.radius);
         g.userData.phase = i * 0.65 + ring.y;
@@ -388,10 +396,12 @@ export function createLantern(type = "vesak-lantern-1") {
         new THREE.Vector3(0.88 * s, -0.40, 0.02),
       ];
       const wrap = new THREE.Group();
-      wrap.add(Object.assign(new THREE.Mesh(
+      const ribbonMesh = new THREE.Mesh(
         new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.030, 6, false),
         solidGlow(c.light, 0.9)
-      ), { scale: new THREE.Vector3(1, 1, 0.30) }));
+      );
+      ribbonMesh.scale.set(1, 1, 0.30);
+      wrap.add(ribbonMesh);
       wrap.position.set(Math.sin(angle) * 0.50, crownCy, Math.cos(angle) * 0.50);
       wrap.rotation.y = angle + (flip ? Math.PI : 0);
       wrap.userData.phase = angle + crownCy;
@@ -527,9 +537,11 @@ export function createLantern(type = "vesak-lantern-1") {
     // ── PAVILION LANTERNS ───────────────────────────────────────────────────
     const buildPavilion = () => {
       const g = new THREE.Group();
-      g.add(Object.assign(new THREE.Mesh(
+      const pavilThread = new THREE.Mesh(
         new THREE.CylinderGeometry(0.006, 0.006, 0.16, 6), solidGlow(0xffffff, 0)
-      ), { position: new THREE.Vector3(0, -0.08, 0) }));
+      );
+      pavilThread.position.y = -0.08;
+      g.add(pavilThread);
 
       const body = new THREE.Mesh(
         style.name === "diamond-star"
@@ -554,9 +566,11 @@ export function createLantern(type = "vesak-lantern-1") {
       eave.rotation.z = Math.PI / 4;
       g.add(eave);
 
-      g.add(Object.assign(new THREE.Mesh(
+      const pavilThread2 = new THREE.Mesh(
         new THREE.CylinderGeometry(0.004, 0.004, 0.12, 6), solidGlow(0xffffff, 0)
-      ), { position: new THREE.Vector3(0, -0.52, 0) }));
+      );
+      pavilThread2.position.y = -0.52;
+      g.add(pavilThread2);
 
       const ball = new THREE.Mesh(
         new THREE.SphereGeometry(0.05, 12, 12), solidGlow(c.glow, 0.85)
@@ -626,9 +640,11 @@ export function createLantern(type = "vesak-lantern-1") {
     // ── HANGING BALLS ───────────────────────────────────────────────────────
     const buildBall = () => {
       const g = new THREE.Group();
-      g.add(Object.assign(new THREE.Mesh(
+      const ballThreadG = new THREE.Mesh(
         new THREE.CylinderGeometry(0.004, 0.004, 0.3, 6), solidGlow(0xffffff, 0)
-      ), { position: new THREE.Vector3(0, -0.15, 0) }));
+      );
+      ballThreadG.position.y = -0.15;
+      g.add(ballThreadG);
 
       const ballGeo = style.name === "diamond-star"
         ? new THREE.OctahedronGeometry(0.08, 0)
