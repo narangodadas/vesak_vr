@@ -21,10 +21,10 @@ export function createLantern(type = "vesak-lantern-1") {
     "vesak-lantern-1": { paper: 0xff5519, line: 0x5c0f00, glow: 0xff7d30, trim: 0xffb648, light: 0xff8a3a },
     "vesak-lantern-2": { paper: 0xff2e8a, line: 0x52003a, glow: 0xff79bd, trim: 0xffd0e8, light: 0xff5fae },
 "vesak-lantern-3": { 
-  paper: 0x00dd44,   // neon green — body panels
-  line: 0x003a12,   // deep forest green — outlines
-  glow: 0x55ff88,   // bright lime green — glow/emissive
-  trim: 0xffcc00,   // gold yellow — crown petals, trim rings
+  paper: 0xA60202,   // neon green — body panels
+  line: 0x730303,   // deep forest green — outlines
+  glow: 0xBD2D2D,   // bright lime green — glow/emissive
+  trim: 0x360606,   // gold yellow — crown petals, trim rings
   light: 0xff1090   // hot pink/magenta — point lights & hanging balls
 },    "vesak-lantern-4": { paper: 0xffab12, line: 0x6e3500, glow: 0xffcf57, trim: 0xfff0a8, light: 0xffb84d },
     "vesak-lantern-5": { paper: 0xff2733, line: 0x5a0008, glow: 0xff5a52, trim: 0xffc27a, light: 0xff5742 }
