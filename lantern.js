@@ -18,6 +18,21 @@
 
 const _texCache = new Map();
 
+// Different music paths for each lantern type.
+// NOTE: Browser cannot play Windows C:\ paths directly.
+// Keep mp3 files inside your project assets folder.
+export const LANTERN_MUSIC_TRACKS = {
+  "vesak-lantern-1": "assets/vesak-music.mp3",
+  "vesak-lantern-2": "assets/vesak music3.mp3",
+  "vesak-lantern-3": "assets/vesak-music.mp3",
+  "vesak-lantern-4": "assets/vesak-music.mp3",
+  "vesak-lantern-5": "assets/vesak-music.mp3"
+};
+
+export function getLanternMusicPath(type = "vesak-lantern-1") {
+  return LANTERN_MUSIC_TRACKS[type] || LANTERN_MUSIC_TRACKS["vesak-lantern-1"];
+}
+
 export function createLantern(type = "vesak-lantern-1") {
   // ---- Palettes (warm orange/red default to match the reference) ----------
   const colorSets = {
@@ -43,13 +58,32 @@ export function createLantern(type = "vesak-lantern-1") {
   };
 
   const lantern = new THREE.Group();          // outer pivot (sway lives here)
-  const core = new THREE.Group();             // everything that spins / floats
+  const core = new THREE.Group();             // floating wrapper
   lantern.add(core);
+
+  // Three rotating parts:
+  // part1Top    -> right rotate
+  // part2Middle -> left rotate
+  // part3Bottom -> right rotate
+  const part1Top = new THREE.Group();
+  const part2Middle = new THREE.Group();
+  const part3Bottom = new THREE.Group();
+
+  core.add(part3Bottom);
+  core.add(part2Middle);
+  core.add(part1Top);
 
   lantern.userData = {
     time: (seed % 1000) * 0.01,
     core,
+    part1Top,
+    part2Middle,
+    part3Bottom,
+    musicPath: getLanternMusicPath(type),
     spinSpeed: 0.10 + (seed % 8) / 100,
+    topSpinSpeed: 0.24 + (seed % 5) / 100,
+    middleSpinSpeed: 0.20 + (seed % 4) / 100,
+    bottomSpinSpeed: 0.24 + (seed % 5) / 100,
     swayPhase: (seed % 628) / 100,
     lights: [],
     patternMats: [],
@@ -79,9 +113,9 @@ export function createLantern(type = "vesak-lantern-1") {
     color: hex, emissive: hex, emissiveIntensity: emI === undefined ? 0.8 : emI, roughness: 0.5, metalness: 0.05
   });
 
-  const addRing = (y, r, s) => {
+  const addRing = (parent, y, r, s) => {
     const m = new THREE.Mesh(new THREE.TorusGeometry(r, 0.018, 12, 60), trimMat(0.45));
-    m.position.y = y; m.rotation.x = Math.PI / 2; m.scale.setScalar(s === undefined ? 1 : s); core.add(m);
+    m.position.y = y; m.rotation.x = Math.PI / 2; m.scale.setScalar(s === undefined ? 1 : s); parent.add(m);
   };
 
   // ==========================================================================
@@ -93,53 +127,53 @@ export function createLantern(type = "vesak-lantern-1") {
     new THREE.CylinderGeometry(0.46, 0.96, 0.8, 8, 1, true),
     texMat(T.base, 8, 1)
   );
-  base.position.y = -2.55; core.add(base);
-  addRing(-2.95, 0.96); addRing(-2.15, 0.5);
+  base.position.y = -2.55; part3Bottom.add(base);
+  addRing(part3Bottom, -2.95, 0.96); addRing(part3Bottom, -2.15, 0.5);
 
   // lower funnel (wide at bottom → narrow at bulb), big mandala
   const lower = new THREE.Mesh(
     new THREE.CylinderGeometry(0.32, 0.9, 1.5, 8, 1, true),
     texMat(T.mandala, 8, 1)
   );
-  lower.position.y = -1.35; core.add(lower);
-  addRing(-0.6, 0.34); addRing(-2.1, 0.9);
+  lower.position.y = -1.35; part3Bottom.add(lower);
+  addRing(part3Bottom, -0.6, 0.34); addRing(part3Bottom, -2.1, 0.9);
 
   // ribbed glowing bulb (the "pot")
   const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.46, 24, 18), texMat(T.ribs, 16, 1, 1.25));
-  bulb.position.y = -0.35; bulb.scale.set(1, 0.92, 1); core.add(bulb);
-  addRing(-0.35, 0.47); addRing(-0.08, 0.34); addRing(-0.62, 0.34);
+  bulb.position.y = -0.35; bulb.scale.set(1, 0.92, 1); part2Middle.add(bulb);
+  addRing(part2Middle, -0.35, 0.47); addRing(part2Middle, -0.08, 0.34); addRing(part2Middle, -0.62, 0.34);
 
   // upper funnel (narrow at bulb → wide under hex), big paisley
   const upper = new THREE.Mesh(
     new THREE.CylinderGeometry(0.82, 0.32, 1.5, 8, 1, true),
     texMat(T.paisley, 8, 1)
   );
-  upper.position.y = 0.5; core.add(upper);
-  addRing(1.25, 0.84); addRing(-0.1, 0.34);
+  upper.position.y = 0.5; part2Middle.add(upper);
+  addRing(part2Middle, 1.25, 0.84); addRing(part2Middle, -0.1, 0.34);
 
   // dharmachakra hex drum
   const hex = new THREE.Mesh(
     new THREE.CylinderGeometry(0.5, 0.5, 0.66, 6, 1, true),
     texMat(T.wheel, 6, 1)
   );
-  hex.position.y = 1.6; core.add(hex);
-  addRing(1.93, 0.52); addRing(1.27, 0.52);
+  hex.position.y = 1.6; part1Top.add(hex);
+  addRing(part1Top, 1.93, 0.52); addRing(part1Top, 1.27, 0.52);
 
   // peaked roof finial
   const roof = new THREE.Mesh(new THREE.ConeGeometry(0.62, 0.5, 6), trimMat(0.7));
-  roof.position.y = 2.18; core.add(roof);
+  roof.position.y = 2.18; part1Top.add(roof);
   const tipBall = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 16), solidGlow(c.glow, 0.9));
-  tipBall.position.y = 2.5; core.add(tipBall);
+  tipBall.position.y = 2.5; part1Top.add(tipBall);
 
   // soft inner glow + outer halo
   const glowMat = new THREE.MeshBasicMaterial({ color: c.glow, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false });
   const glow = new THREE.Mesh(new THREE.SphereGeometry(0.55, 20, 20), glowMat);
-  glow.position.y = -0.35; core.add(glow);
+  glow.position.y = -0.35; part2Middle.add(glow);
   U.glowShells.push({ mesh: glow, base: 0.55 });
 
   const haloMat = new THREE.MeshBasicMaterial({ color: c.glow, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false });
   const halo = new THREE.Mesh(new THREE.SphereGeometry(2.6, 18, 18), haloMat);
-  core.add(halo);
+  part2Middle.add(halo);
   U.glowShells.push({ mesh: halo, base: 0.1 });
 
   // a few warm lights so the structure casts glow into the scene
@@ -173,28 +207,28 @@ export function createLantern(type = "vesak-lantern-1") {
     return g;
   };
 
-  const arm = (angle, R, y) => {
+  const arm = (parent, angle, R, y) => {
     const a = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, R - 0.45, 6), trimMat(0.35));
     a.rotation.z = Math.PI / 2; a.rotation.y = -angle;
     const mid = (R + 0.45) / 2;
     a.position.set(Math.sin(angle) * mid, y, Math.cos(angle) * mid);
-    core.add(a);
+    parent.add(a);
   };
 
-  const placeTier = (count, R, y, startA) => {
+  const placeTier = (parent, count, R, y, startA) => {
     for (let i = 0; i < count; i++) {
       const angle = startA + (i / count) * Math.PI * 2;
-      arm(angle, R, y);
+      arm(parent, angle, R, y);
       const p = buildPavilion();
       p.position.set(Math.sin(angle) * R, y, Math.cos(angle) * R);
       p.rotation.y = angle;                 // face outward
       p.userData.phase = i * 0.8 + y;
-      core.add(p);
+      parent.add(p);
       U.pavilions.push({ group: p, phase: p.userData.phase });
     }
   };
-  placeTier(4, 1.15, 0.55, 0.4);
-  placeTier(5, 1.1, -1.25, 0.0);
+  placeTier(part2Middle, 4, 1.15, 0.55, 0.4);
+  placeTier(part3Bottom, 5, 1.1, -1.25, 0.0);
 
   // ==========================================================================
   //  RIBBON SCROLLS — curling flat ribbons at two levels
@@ -218,7 +252,7 @@ export function createLantern(type = "vesak-lantern-1") {
     wrap.position.set(Math.sin(angle) * 0.55, y, Math.cos(angle) * 0.55);
     wrap.rotation.y = angle + (flip ? Math.PI : 0);
     wrap.userData.phase = angle + y;
-    core.add(wrap);
+    part2Middle.add(wrap);
     U.ribbons.push({ group: wrap, phase: wrap.userData.phase });
   };
   makeRibbon(0.9, 0.55, false); makeRibbon(0.9, 0.55, true);
@@ -246,7 +280,7 @@ export function createLantern(type = "vesak-lantern-1") {
     const b = buildBall();
     b.position.set(Math.sin(sp[0]) * sp[1], sp[2], Math.cos(sp[0]) * sp[1]);
     b.userData.phase = i * 0.9;
-    core.add(b);
+    part3Bottom.add(b);
     U.balls.push({ group: b, phase: b.userData.phase });
   });
 
@@ -266,9 +300,18 @@ export function updateLantern(lantern, delta = 0.016) {
   const t = U.time;
 
   if (U.core) {
-    U.core.rotation.y += delta * U.spinSpeed;          // stately slow turn
+    // Keep the outer wrapper only for gentle floating.
     U.core.position.y = Math.sin(t * 0.9 + U.swayPhase) * 0.05;
   }
+
+  // 3 different rotation directions:
+  // 1st/top part    -> right rotate
+  // 2nd/middle part -> left rotate
+  // 3rd/bottom part -> right rotate
+  if (U.part1Top) U.part1Top.rotation.y += delta * U.topSpinSpeed;
+  if (U.part2Middle) U.part2Middle.rotation.y -= delta * U.middleSpinSpeed;
+  if (U.part3Bottom) U.part3Bottom.rotation.y += delta * U.bottomSpinSpeed;
+
   // breeze sway of the whole centerpiece
   lantern.rotation.z = Math.sin(t * 0.7 + U.swayPhase) * 0.04;
   lantern.rotation.x = Math.sin(t * 0.5 + U.swayPhase + 1.2) * 0.03;
