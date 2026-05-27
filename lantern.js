@@ -19,7 +19,7 @@ export function getLanternMusicPath(type = "vesak-lantern-1") {
 export function createLantern(type = "vesak-lantern-1") {
   const colorSets = {
     "vesak-lantern-1": { paper: 0xff5519, line: 0x5c0f00, glow: 0xff7d30, trim: 0xffb648, light: 0xff8a3a },
-    "vesak-lantern-2": { paper: 0x330194, line: 0x1C024F, glow: 0x4D2796, trim: 0x190D33, light: 0xff5fae },
+    "vesak-lantern-2": { paper: 0x330194, line: 0x350E8A, glow: 0x4D2796, trim: 0x190D33, light: 0xff5fae },
 "vesak-lantern-3": { 
   paper: 0xA60202,   // neon green — body panels
   line: 0x730303,   // deep forest green — outlines
