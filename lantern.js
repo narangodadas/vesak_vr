@@ -20,8 +20,13 @@ export function createLantern(type = "vesak-lantern-1") {
   const colorSets = {
     "vesak-lantern-1": { paper: 0xff5519, line: 0x5c0f00, glow: 0xff7d30, trim: 0xffb648, light: 0xff8a3a },
     "vesak-lantern-2": { paper: 0xff2e8a, line: 0x52003a, glow: 0xff79bd, trim: 0xffd0e8, light: 0xff5fae },
-    "vesak-lantern-3": { paper: 0x12c46a, line: 0x004023, glow: 0x5cf7a0, trim: 0xd6ffe6, light: 0x37e08a },
-    "vesak-lantern-4": { paper: 0xffab12, line: 0x6e3500, glow: 0xffcf57, trim: 0xfff0a8, light: 0xffb84d },
+"vesak-lantern-3": {
+  paper: 0x39ff14,   // neon green
+  line: 0x050505,    // black contrast
+  glow: 0xff2bd6,    // bright magenta glow
+  trim: 0xffd21f,    // golden yellow
+  light: 0xff7a18    // orange
+},    "vesak-lantern-4": { paper: 0xffab12, line: 0x6e3500, glow: 0xffcf57, trim: 0xfff0a8, light: 0xffb84d },
     "vesak-lantern-5": { paper: 0xff2733, line: 0x5a0008, glow: 0xff5a52, trim: 0xffc27a, light: 0xff5742 }
   };
 
@@ -56,21 +61,21 @@ export function createLantern(type = "vesak-lantern-1") {
       miniRadiusBottom: 1.25,
       scaleY: 1.08
     },
-    "vesak-lantern-3": {
-      name: "lotus-umbrella",
-      sideCount: 10,
-      topShape: "umbrella",
-      bulbShape: "lotus",
-      lowerTopRadius: 0.48,
-      lowerBottomRadius: 0.75,
-      upperTopRadius: 0.75,
-      upperBottomRadius: 0.48,
-      pavilionTopCount: 8,
-      pavilionBottomCount: 4,
-      miniRadiusTop: 1.45,
-      miniRadiusBottom: 0.95,
-      scaleY: 0.95
-    }
+   "vesak-lantern-3": {
+  name: "neon-lotus-pagoda",
+  sideCount: 12,
+  topShape: "umbrella",
+  bulbShape: "lotus",
+  lowerTopRadius: 0.42,
+  lowerBottomRadius: 1.05,
+  upperTopRadius: 1.08,
+  upperBottomRadius: 0.42,
+  pavilionTopCount: 10,
+  pavilionBottomCount: 8,
+  miniRadiusTop: 1.55,
+  miniRadiusBottom: 1.25,
+  scaleY: 1.05
+},
   };
 
   const keys = Object.keys(colorSets);
