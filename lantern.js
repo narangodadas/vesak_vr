@@ -415,3 +415,4 @@ export function updateLantern(lantern, delta = 0.016) {
     light.intensity = (i === 0 ? 2 : 1.2) * flicker;
   });
 }
+//======================

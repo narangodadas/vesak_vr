@@ -435,3 +435,4 @@ function onResize() {
 
 window.addEventListener("pagehide", stopApp);
 window.addEventListener("beforeunload", stopApp);
+//=====
