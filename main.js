@@ -12,10 +12,16 @@ const screenshotBtn = document.getElementById("screenshotBtn");
 const resetAnchorBtn = document.getElementById("resetAnchorBtn");
 const downloadLink = document.getElementById("downloadLink");
 
-// Music file path
-const vesakMusic = new Audio("assets/vesak-music.mp3");
-vesakMusic.loop = true;
-vesakMusic.volume = 0.6;
+// Different music for each QR lantern type.
+// Browser cannot load Windows C:\ paths directly.
+// Put mp3 files inside your project assets folder and use these relative paths.
+const musicTracks = {
+  "vesak-lantern-1": "assets/vesak-music.mp3",
+  "vesak-lantern-2": "assets/vesak music3.mp3",
+  "vesak-lantern-3": "assets/vesak-music.mp3" // replace with 3rd mp3 path when ready
+};
+
+let vesakMusic = null;
 
 let scene;
 let camera;
@@ -69,7 +75,7 @@ async function safeStartApp() {
     controlPanel.classList.remove("hidden");
 
     isRunning = true;
-  statusBar.textContent = "Point camera at QR code";
+    statusBar.textContent = "Point camera at QR code";
 
     animate();
   } catch (error) {
@@ -210,16 +216,26 @@ function setupQRScanner() {
   qrScanner.start();
 }
 
-function playVesakMusic() {
-  vesakMusic.currentTime = 0;
+function playVesakMusic(qrText) {
+  stopVesakMusic();
+
+  const musicPath = musicTracks[qrText] || musicTracks["vesak-lantern-1"];
+
+  vesakMusic = new Audio(musicPath);
+  vesakMusic.loop = true;
+  vesakMusic.volume = 0.6;
+
   vesakMusic.play().catch((error) => {
     console.warn("Music play blocked:", error);
   });
 }
 
 function stopVesakMusic() {
+  if (!vesakMusic) return;
+
   vesakMusic.pause();
   vesakMusic.currentTime = 0;
+  vesakMusic = null;
 }
 
 function placeLanternAtQRLocation(qrText, qrLocation) {
@@ -262,7 +278,7 @@ function placeLanternAtQRLocation(qrText, qrLocation) {
 
   scene.add(currentLantern);
 
-  playVesakMusic();
+  playVesakMusic(qrText);
 
   if (groundShadow) {
     groundShadow.visible = true;
@@ -278,7 +294,7 @@ function placeLanternAtQRLocation(qrText, qrLocation) {
     qrScanner.stop();
   }
 
-statusBar.classList.add("hidden");
+  statusBar.classList.add("hidden");
 }
 
 function updateCameraAndAnchor() {
@@ -352,8 +368,8 @@ function resetAnchor() {
     qrScanner.start();
   }
 
-statusBar.classList.remove("hidden");
-statusBar.textContent = "Ready to scan";
+  statusBar.classList.remove("hidden");
+  statusBar.textContent = "Ready to scan";
 }
 
 function stopCameraOnly() {
