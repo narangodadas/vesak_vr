@@ -18,7 +18,7 @@ const downloadLink = document.getElementById("downloadLink");
 const musicTracks = {
   "vesak-lantern-1": "assets/vesak-music.mp3",
   "vesak-lantern-2": "assets/vesak music3.mp3",
-  "vesak-lantern-3": "assets/vesak-music.mp3" // replace with 3rd mp3 path when ready
+  "vesak-lantern-3": "assets/vesak music2.mp3" // replace with 3rd mp3 path when ready
 };
 
 let vesakMusic = null;
