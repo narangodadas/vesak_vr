@@ -31,7 +31,7 @@ let isRunning = false;
 const anchorState = {
   placed: false,
   anchorX: 0,
-  anchorY: -0.75,
+  anchorY: -0.55,
   anchorZ: -3.0,
   scale: 0.62
 };
@@ -238,7 +238,7 @@ function placeLanternAtQRLocation(qrText, qrLocation) {
     anchorState.anchorX = ((centerX / video.videoWidth) - 0.5) * 1.3;
   }
 
-  anchorState.anchorY = -0.75;
+  anchorState.anchorY = -0.55;
   anchorState.anchorZ = -3.0;
   anchorState.scale = 0.62;
 
@@ -329,7 +329,7 @@ function animate() {
 function resetAnchor() {
   anchorState.placed = false;
   anchorState.anchorX = 0;
-  anchorState.anchorY = -0.75;
+  anchorState.anchorY = -0.55;
   anchorState.anchorZ = -3.0;
   anchorState.scale = 0.62;
 
