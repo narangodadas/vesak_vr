@@ -43,12 +43,12 @@ export function createLantern(type = "vesak-lantern-1") {
 
     // Lantern 3 — FULL DARK GREEN THEME
     "vesak-lantern-3": {
-      paper: 0x003b1f,
-      line: 0x00120a,
-      glow: 0x00ff66,
-      trim: 0x0b8f3a,
-      light: 0x39ff14,
-      accent: 0xb6ff7a
+       paper: 0x7a3b00,
+      line: 0x180900,
+      glow: 0xffb300,
+      trim: 0xffd36a,
+      light: 0xff7300,
+      accent: 0xfff1a8
     },
 
     // Dark golden theme
