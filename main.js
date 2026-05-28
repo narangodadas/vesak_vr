@@ -334,7 +334,7 @@ function placeAnchor(qrText, qrLocation) {
     anchor.position.y + 0.5,      // float above the QR code
     anchor.position.z
   );
-  currentLantern.scale.setScalar(0.52);
+  currentLantern.scale.setScalar(0.48);
   scene.add(currentLantern);
 
   // Ground shadow sits on the floor directly under the lantern
