@@ -33,7 +33,7 @@ export function createLantern(type = "vesak-lantern-1") {
   const styleSets = {
     "vesak-lantern-1": {
       name: "temple-tower",
-      sideCount: 8,
+      sideCount: 12,
       topShape: "hex",
       bulbShape: "sphere",
       lowerTopRadius: 0.32,
@@ -48,7 +48,7 @@ export function createLantern(type = "vesak-lantern-1") {
     },
     "vesak-lantern-2": {
       name: "diamond-star",
-      sideCount: 6,
+      sideCount: 10,
       topShape: "diamond",
       bulbShape: "diamond",
       lowerTopRadius: 0.2,
@@ -63,7 +63,7 @@ export function createLantern(type = "vesak-lantern-1") {
     },
     "vesak-lantern-3": {
   name: "lotus-umbrella",
-  sideCount: 14,            // smooth round column (more facets = rounder)
+  sideCount: 16,            // smooth round column (more facets = rounder)
   topShape: "umbrella",
   bulbShape: "lotus",
   lowerTopRadius: 0.52,     // wide flat disc silhouette at base
