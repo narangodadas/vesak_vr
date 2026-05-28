@@ -37,10 +37,10 @@ const colorSets = {
   "vesak-lantern-1": {
     paper:   0x0a2e12,   // very dark forest green body
     line:    0x030f06,   // near-black green ink
-    glow:    0x00e676,   // electric emerald glow
-    trim:    0x69f0ae,   // bright mint trim rings
-    light:   0x00c853,   // deep green light colour
-    accent:  0xb9f6ca,   // pale jade accent
+    glow:    0x007D43,   // electric emerald glow
+    trim:    0x3B825D,   // bright mint trim rings
+    light:   0x008036,   // deep green light colour
+    accent:  0x6B8F77,   // pale jade accent
     bg:      0x001a08    // darkest background tint
   },
 
