@@ -23,12 +23,12 @@ export function createLantern(type = "vesak-lantern-1") {
   const colorSets = {
     // Dark orange / gold temple theme
     "vesak-lantern-1": {
-      paper: 0xb84a00,
-      line: 0x1a0800,
-      glow: 0xff9d22,
-      trim: 0xffd36a,
-      light: 0xff7a00,
-      accent: 0xfff0b0
+      paper: 0x4a0015,
+      line: 0x120005,
+      glow: 0xff2bd6,
+      trim: 0x00e5ff,
+      light: 0xff1744,
+      accent: 0xff9bd8
     },
 
     // Lantern 2 — FULL DARK RED THEME
