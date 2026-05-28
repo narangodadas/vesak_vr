@@ -48,10 +48,10 @@ const colorSets = {
   "vesak-lantern-2": {
     paper:   0x2d0005,   // very dark crimson body
     line:    0x0e0002,   // near-black red ink
-    glow:    0xff1744,   // hot red glow
-    trim:    0xff6d6d,   // coral / scarlet trim
+    glow:    0x8C112A,   // hot red glow
+    trim:    0x852929,   // coral / scarlet trim
     light:   0xd50000,   // deep red light
-    accent:  0xff8a80,   // salmon accent
+    accent:  0x73413C,   // salmon accent
     bg:      0x1a0000    // darkest background tint
   },
 
