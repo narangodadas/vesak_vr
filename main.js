@@ -331,7 +331,7 @@ function placeAnchor(qrText, qrLocation) {
   // Place lantern so its base sits AT the anchor, floating 0.5 m above floor
   currentLantern.position.set(
     anchor.position.x,
-    anchor.position.y - 0.2,      // float above the QR code
+    anchor.position.y  + 0.1,      // float above the QR code
     anchor.position.z
   );
   currentLantern.scale.setScalar(0.62);
