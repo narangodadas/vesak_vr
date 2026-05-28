@@ -2,15 +2,15 @@ import { QRScanner } from "./qr-scanner.js";
 import { createLantern, updateLantern } from "./lantern.js";
 import { captureScreenshot } from "./screenshot.js";
 
-const video = document.getElementById("cameraVideo");
-const arContainer = document.getElementById("arContainer");
-const overlay = document.getElementById("overlay");
-const startBtn = document.getElementById("startBtn");
-const statusBar = document.getElementById("statusBar");
+const video        = document.getElementById("cameraVideo");
+const arContainer  = document.getElementById("arContainer");
+const overlay      = document.getElementById("overlay");
+const startBtn     = document.getElementById("startBtn");
+const statusBar    = document.getElementById("statusBar");
 const controlPanel = document.getElementById("controlPanel");
-const screenshotBtn = document.getElementById("screenshotBtn");
-const resetAnchorBtn = document.getElementById("resetAnchorBtn");
-const downloadLink = document.getElementById("downloadLink");
+const screenshotBtn   = document.getElementById("screenshotBtn");
+const resetAnchorBtn  = document.getElementById("resetAnchorBtn");
+const downloadLink    = document.getElementById("downloadLink");
 
 const musicTracks = {
   "vesak-lantern-1": "assets/vesak-music.mp3",
@@ -19,134 +19,156 @@ const musicTracks = {
 };
 
 let vesakMusic = null;
-
-let scene;
-let camera;
-let renderer;
-let clock;
-let qrScanner;
-let currentStream = null;
+let scene, camera, renderer, clock;
+let qrScanner, currentStream;
 let currentLantern = null;
-let groundShadow = null;
+let groundShadow   = null;
 let animationFrameId = null;
 let isRunning = false;
 
 // ============================================================================
-//  DEVICE ORIENTATION — real AR anchor system
+//  ANCHOR — world-space fixed point (set once when QR is scanned)
+// ============================================================================
+const anchor = {
+  placed:   false,
+  position: new THREE.Vector3()   // lantern base in world space (above QR)
+};
+
+// ============================================================================
+//  DEVICE ORIENTATION
+//  Phone yaw/pitch/roll  →  spherical camera orbit around anchor
 // ============================================================================
 
-// Phone orientation stored as a quaternion
-const deviceQuaternion = new THREE.Quaternion();
+// Raw orientation angles (degrees) updated by sensor event
+const orientation = { alpha: 0, beta: 90, gamma: 0 };
+let orientationReady = false;
 
-// The orientation at the moment the QR was scanned — used as "world anchor"
-const anchorQuaternion = new THREE.Quaternion();
+// Full device→world quaternion (same algorithm as Three.js DeviceOrientationControls)
+const deviceQuat   = new THREE.Quaternion();
+const _euler       = new THREE.Euler();
+const _qAdjust     = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
 
-// Temp objects reused every frame (avoid GC pressure)
-const _euler = new THREE.Euler();
-const _q1 = new THREE.Quaternion();
-const _qScreen = new THREE.Quaternion(); // screen-orientation correction
-const _qWorld = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // device → world
+function buildDeviceQuat(alpha, beta, gamma) {
+  _euler.set(
+    THREE.MathUtils.degToRad(beta),
+    THREE.MathUtils.degToRad(alpha),
+    THREE.MathUtils.degToRad(-gamma),
+    "YXZ"
+  );
+  deviceQuat.setFromEuler(_euler);
+  deviceQuat.multiply(_qAdjust);
 
-let orientationSupported = false;
-let orientationPermissionGranted = false;
-let lastAlpha = null;
-let lastBeta = null;
-let lastGamma = null;
+  // Screen-orientation correction (portrait / landscape)
+  const screenAngle = window.screen?.orientation?.angle ?? 0;
+  if (screenAngle !== 0) {
+    const _qScreen = new THREE.Quaternion();
+    _qScreen.setFromAxisAngle(
+      new THREE.Vector3(0, 0, 1),
+      -THREE.MathUtils.degToRad(screenAngle)
+    );
+    deviceQuat.multiply(_qScreen);
+  }
+}
 
-// Called on every deviceorientation event
 function onDeviceOrientation(evt) {
-  if (evt.alpha === null && evt.beta === null && evt.gamma === null) return;
-
-  lastAlpha = evt.alpha;
-  lastBeta  = evt.beta;
-  lastGamma = evt.gamma;
-
-  // Build quaternion from phone Euler angles
-  // Three.js DeviceOrientationControls algorithm (royalty-free, well-tested)
-  const alpha = THREE.MathUtils.degToRad(evt.alpha || 0); // Z
-  const beta  = THREE.MathUtils.degToRad(evt.beta  || 0); // X
-  const gamma = THREE.MathUtils.degToRad(evt.gamma || 0); // Y
-
-  _euler.set(beta, alpha, -gamma, "YXZ");
-  deviceQuaternion.setFromEuler(_euler);
-  deviceQuaternion.multiply(_qWorld);
-
-  // Correct for screen orientation (portrait = 0, landscape = ±90)
-  const screenAngle = THREE.MathUtils.degToRad(window.screen.orientation?.angle ?? 0);
-  _qScreen.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -screenAngle);
-  deviceQuaternion.multiply(_qScreen);
+  if (evt.alpha == null) return;
+  orientation.alpha = evt.alpha;
+  orientation.beta  = evt.beta;
+  orientation.gamma = evt.gamma;
+  orientationReady  = true;
 }
 
 async function requestOrientationPermission() {
-  // iOS 13+ requires explicit permission
   if (
     typeof DeviceOrientationEvent !== "undefined" &&
     typeof DeviceOrientationEvent.requestPermission === "function"
   ) {
     try {
-      const result = await DeviceOrientationEvent.requestPermission();
-      if (result === "granted") {
-        orientationPermissionGranted = true;
+      const res = await DeviceOrientationEvent.requestPermission();
+      if (res === "granted") {
+        window.addEventListener("deviceorientation", onDeviceOrientation, true);
       }
     } catch (e) {
-      console.warn("DeviceOrientation permission denied:", e);
+      console.warn("Orientation permission denied:", e);
     }
   } else {
-    // Android / non-iOS — permission not required
-    orientationPermissionGranted = true;
-  }
-
-  if (orientationPermissionGranted) {
     window.addEventListener("deviceorientation", onDeviceOrientation, true);
-    orientationSupported = true;
   }
 }
 
 // ============================================================================
-//  Anchor state
+//  Camera orbit
+//
+//  Strategy:
+//    - The lantern sits at anchor.position (world space, fixed forever)
+//    - We derive a camera position by:
+//        1. Taking the device quaternion as the camera's orientation
+//        2. Walking "backwards" from the anchor by a fixed arm length
+//           so the camera always looks AT the anchor
+//
+//  This means:
+//    - Phone flat, looking down  → top-down view
+//    - Phone at 90°, looking forward → side view
+//    - Walk 360° around QR code → orbit around lantern
 // ============================================================================
 
-const anchorState = {
-  placed: false,
-  // World-space position of the lantern (set once when QR is scanned)
-  worldPos: new THREE.Vector3(0, -0.35, -3.0),
-  scale: 0.62
-};
+const CAM_ARM = 3.2;  // metres from anchor to camera (tweak for scale feel)
 
-// ============================================================================
-//  App lifecycle
-// ============================================================================
+// "forward" in camera space = (0,0,-1), so camera position = anchor + cam_forward * ARM
+const _camForward = new THREE.Vector3();
+const _up         = new THREE.Vector3(0, 1, 0);
 
-startBtn.addEventListener("click", async () => {
-  await safeStartApp();
-});
+function updateCamera() {
+  if (!camera) return;
 
-resetAnchorBtn.addEventListener("click", () => {
-  resetAnchor();
-});
-
-screenshotBtn.addEventListener("click", () => {
-  if (renderer) {
-    captureScreenshot(video, renderer.domElement, downloadLink);
+  if (!orientationReady) {
+    // Fallback: fixed angled view so lantern is visible immediately
+    camera.position.set(
+      anchor.position.x,
+      anchor.position.y + 2.0,
+      anchor.position.z + 2.5
+    );
+    camera.lookAt(anchor.position);
+    return;
   }
+
+  // Build fresh device quaternion from latest sensor data
+  buildDeviceQuat(orientation.alpha, orientation.beta, orientation.gamma);
+
+  // Extract the direction the phone camera is pointing (−Z in camera space)
+  _camForward.set(0, 0, -1).applyQuaternion(deviceQuat);
+
+  // Camera sits behind the anchor along that direction
+  // i.e.  camera = anchor  −  forward * ARM
+  camera.position
+    .copy(anchor.position)
+    .addScaledVector(_camForward, -CAM_ARM);
+
+  // Always look at the anchor (lantern base / QR position)
+  camera.lookAt(anchor.position);
+}
+
+// ============================================================================
+//  App start
+// ============================================================================
+
+startBtn.addEventListener("click", async () => await safeStartApp());
+resetAnchorBtn.addEventListener("click", resetAnchor);
+screenshotBtn.addEventListener("click", () => {
+  if (renderer) captureScreenshot(video, renderer.domElement, downloadLink);
 });
 
 async function safeStartApp() {
   startBtn.disabled = true;
-  startBtn.textContent = "Scanning...";
+  startBtn.textContent = "Starting...";
   statusBar.textContent = "Starting camera...";
 
   try {
     stopCameraOnly();
-
-    // Ask for orientation permission BEFORE camera (iOS needs a user gesture)
     await requestOrientationPermission();
-
     await startCamera();
 
-    if (!renderer) {
-      setupThreeScene();
-    }
+    if (!renderer) setupThreeScene();
 
     setupQRScanner();
 
@@ -154,65 +176,39 @@ async function safeStartApp() {
     controlPanel.classList.remove("hidden");
 
     isRunning = true;
-    statusBar.textContent = orientationSupported
-      ? "Point camera at QR code"
-      : "Point camera at QR code (no gyro — static mode)";
+    statusBar.textContent = "Point camera at QR code";
 
     animate();
-  } catch (error) {
-    console.error("Start error:", error);
-
+  } catch (err) {
+    console.error("Start error:", err);
     startBtn.disabled = false;
     startBtn.textContent = "Start Camera";
     statusBar.textContent = "Camera failed.";
-
-    alert(
-      "Camera failed. Use HTTPS, allow Camera permission, close other camera apps, then refresh."
-    );
+    alert("Camera failed. Use HTTPS, allow Camera permission, then refresh.");
   }
 }
 
 async function startCamera() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    throw new Error("Camera API not supported.");
-  }
+  if (!navigator.mediaDevices?.getUserMedia) throw new Error("Camera not supported");
 
-  const constraintsList = [
-    {
-      video: {
-        facingMode: { exact: "environment" },
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
-      },
-      audio: false
-    },
-    {
-      video: {
-        facingMode: "environment",
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
-      },
-      audio: false
-    },
+  const tries = [
+    { video: { facingMode: { exact: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+    { video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
     { video: true, audio: false }
   ];
 
-  let lastError = null;
-
-  for (const constraints of constraintsList) {
+  let lastErr;
+  for (const c of tries) {
     try {
-      currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+      currentStream  = await navigator.mediaDevices.getUserMedia(c);
       video.srcObject = currentStream;
       video.setAttribute("playsinline", true);
       video.muted = true;
       await video.play();
       return;
-    } catch (error) {
-      lastError = error;
-    }
+    } catch (e) { lastErr = e; }
   }
-
-  throw lastError;
+  throw lastErr;
 }
 
 // ============================================================================
@@ -220,85 +216,136 @@ async function startCamera() {
 // ============================================================================
 
 function setupThreeScene() {
-  scene = new THREE.Scene();
+  scene  = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.01, 100);
 
-  camera = new THREE.PerspectiveCamera(
-    62,
-    window.innerWidth / window.innerHeight,
-    0.01,
-    100
-  );
-
-  // Do NOT set camera.position / rotation here — driven by orientation
-  camera.rotation.order = "YXZ";
-
-  renderer = new THREE.WebGLRenderer({
-    alpha: true,
-    antialias: true,
-    preserveDrawingBuffer: true
-  });
-
+  renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
-
-  if (renderer.outputEncoding !== undefined) {
-    renderer.outputEncoding = THREE.sRGBEncoding;
-  }
+  if (renderer.outputEncoding !== undefined) renderer.outputEncoding = THREE.sRGBEncoding;
 
   arContainer.innerHTML = "";
   arContainer.appendChild(renderer.domElement);
 
   clock = new THREE.Clock();
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
-  scene.add(ambientLight);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.95));
 
-  const keyLight = new THREE.DirectionalLight(0xffffff, 0.9);
-  keyLight.position.set(2, 3, 4);
-  scene.add(keyLight);
+  const key = new THREE.DirectionalLight(0xffffff, 0.9);
+  key.position.set(2, 3, 4);
+  scene.add(key);
 
-  const fillLight = new THREE.DirectionalLight(0xffcc88, 0.45);
-  fillLight.position.set(-3, 1, 2);
-  scene.add(fillLight);
+  const fill = new THREE.DirectionalLight(0xffcc88, 0.45);
+  fill.position.set(-3, 1, 2);
+  scene.add(fill);
 
-  groundShadow = createGroundShadow();
+  groundShadow = buildGroundShadow();
   scene.add(groundShadow);
 
   window.addEventListener("resize", onResize);
 }
 
-function createGroundShadow() {
-  const shadowGeo = new THREE.CircleGeometry(1.15, 64);
-
-  const shadowMat = new THREE.MeshBasicMaterial({
-    color: 0x000000,
-    transparent: true,
-    opacity: 0.25,
-    depthWrite: false
-  });
-
-  const shadow = new THREE.Mesh(shadowGeo, shadowMat);
-  shadow.rotation.x = -Math.PI / 2;
-  shadow.visible = false;
-
-  return shadow;
+function buildGroundShadow() {
+  const mesh = new THREE.Mesh(
+    new THREE.CircleGeometry(1.15, 64),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25, depthWrite: false })
+  );
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.visible = false;
+  return mesh;
 }
 
 // ============================================================================
-//  QR Scanner
+//  QR detection → anchor placement
 // ============================================================================
 
 function setupQRScanner() {
-  if (qrScanner) {
-    qrScanner.stop();
-  }
+  if (qrScanner) qrScanner.stop();
 
   qrScanner = new QRScanner(video, (qrText, qrLocation) => {
-    if (!qrText || anchorState.placed) return;
-    placeLanternAtQRLocation(qrText, qrLocation);
+    if (!qrText || anchor.placed) return;
+    placeAnchor(qrText, qrLocation);
   });
 
   qrScanner.start();
+}
+
+function placeAnchor(qrText, qrLocation) {
+  anchor.placed = true;
+
+  // -----------------------------------------------------------------------
+  //  Derive a horizontal offset from the QR centre in the video frame.
+  //  This nudges the anchor left/right to match where the QR actually is.
+  // -----------------------------------------------------------------------
+  let offsetX = 0;
+  if (qrLocation && video.videoWidth) {
+    const cx = (
+      qrLocation.topLeftCorner.x  + qrLocation.topRightCorner.x +
+      qrLocation.bottomLeftCorner.x + qrLocation.bottomRightCorner.x
+    ) / 4;
+    offsetX = ((cx / video.videoWidth) - 0.5) * 1.3;
+  }
+
+  // -----------------------------------------------------------------------
+  //  World position of the anchor (= QR code location on the floor)
+  //  We use the device orientation at scan time to project "in front of camera"
+  //  onto a ground plane.
+  //
+  //  Simple approach:
+  //    Build the device quat right now, fire a ray forward, intersect Y=0
+  //    (the floor plane).  If orientation isn't ready, fall back to a
+  //    fixed 3 m in front.
+  // -----------------------------------------------------------------------
+  if (orientationReady) {
+    buildDeviceQuat(orientation.alpha, orientation.beta, orientation.gamma);
+
+    // Ray origin = camera (assume user holds phone at ~eye level, ~1.5 m up)
+    const rayOrigin = new THREE.Vector3(offsetX, 1.5, 0);
+
+    // Ray direction = where the phone camera points
+    const rayDir = new THREE.Vector3(0, 0, -1).applyQuaternion(deviceQuat);
+
+    // Intersect with the ground plane  (Y = 0)
+    if (rayDir.y < -0.05) {                        // pointing at least slightly down
+      const t = -rayOrigin.y / rayDir.y;           // parametric: y=0 solve
+      anchor.position.set(
+        rayOrigin.x + rayDir.x * t,
+        0,                                         // floor level
+        rayOrigin.z + rayDir.z * t
+      );
+    } else {
+      // Phone held level / pointing up — default position
+      anchor.position.set(offsetX, 0, -3.0);
+    }
+  } else {
+    anchor.position.set(offsetX, 0, -3.0);
+  }
+
+  // -----------------------------------------------------------------------
+  //  Build the lantern.  It floats above the anchor point.
+  // -----------------------------------------------------------------------
+  if (currentLantern) { scene.remove(currentLantern); disposeObject(currentLantern); }
+
+  currentLantern = createLantern(qrText);
+
+  // Place lantern so its base sits AT the anchor, floating 0.5 m above floor
+  currentLantern.position.set(
+    anchor.position.x,
+    anchor.position.y + 0.5,      // float above the QR code
+    anchor.position.z
+  );
+  currentLantern.scale.setScalar(0.62);
+  scene.add(currentLantern);
+
+  // Ground shadow sits on the floor directly under the lantern
+  if (groundShadow) {
+    groundShadow.visible = true;
+    groundShadow.position.set(anchor.position.x, anchor.position.y + 0.01, anchor.position.z);
+  }
+
+  playVesakMusic(qrText);
+  if (qrScanner) qrScanner.stop();
+  statusBar.classList.add("hidden");
 }
 
 // ============================================================================
@@ -307,105 +354,18 @@ function setupQRScanner() {
 
 function playVesakMusic(qrText) {
   stopVesakMusic();
-
-  const musicPath = musicTracks[qrText] || musicTracks["vesak-lantern-1"];
-
-  vesakMusic = new Audio(musicPath);
-  vesakMusic.loop = true;
+  const path = musicTracks[qrText] || musicTracks["vesak-lantern-1"];
+  vesakMusic = new Audio(path);
+  vesakMusic.loop   = true;
   vesakMusic.volume = 0.6;
-
-  vesakMusic.play().catch((error) => {
-    console.warn("Music play blocked:", error);
-  });
+  vesakMusic.play().catch(e => console.warn("Music blocked:", e));
 }
 
 function stopVesakMusic() {
   if (!vesakMusic) return;
-
   vesakMusic.pause();
   vesakMusic.currentTime = 0;
   vesakMusic = null;
-}
-
-// ============================================================================
-//  Place lantern — anchor to world position using current orientation
-// ============================================================================
-
-function placeLanternAtQRLocation(qrText, qrLocation) {
-  anchorState.placed = true;
-
-  // --- Compute horizontal offset from QR center in the video frame ---
-  let offsetX = 0;
-
-  if (qrLocation && video.videoWidth) {
-    const centerX =
-      (
-        qrLocation.topLeftCorner.x +
-        qrLocation.topRightCorner.x +
-        qrLocation.bottomLeftCorner.x +
-        qrLocation.bottomRightCorner.x
-      ) / 4;
-
-    offsetX = ((centerX / video.videoWidth) - 0.5) * 1.3;
-  }
-
-  // --- Record the phone orientation at scan time as the "forward" direction ---
-  anchorQuaternion.copy(deviceQuaternion);
-
-  // --- Compute world-space position for the lantern ---
-  // Start with a point directly in front of the camera (in camera space)
-  const localPos = new THREE.Vector3(offsetX, -0.35, -3.0);
-
-  // Rotate that local offset by the anchor orientation to get world position
-  localPos.applyQuaternion(anchorQuaternion);
-
-  anchorState.worldPos.copy(localPos);
-  anchorState.scale = 0.62;
-
-  // --- Build / replace the lantern ---
-  if (currentLantern) {
-    scene.remove(currentLantern);
-    disposeObject(currentLantern);
-  }
-
-  currentLantern = createLantern(qrText);
-  currentLantern.position.copy(anchorState.worldPos);
-  currentLantern.scale.setScalar(anchorState.scale);
-  scene.add(currentLantern);
-
-  playVesakMusic(qrText);
-
-  if (groundShadow) {
-    groundShadow.visible = true;
-    groundShadow.position.set(
-      anchorState.worldPos.x,
-      anchorState.worldPos.y - 0.7,
-      anchorState.worldPos.z
-    );
-  }
-
-  if (qrScanner) {
-    qrScanner.stop();
-  }
-
-  statusBar.classList.add("hidden");
-}
-
-// ============================================================================
-//  Per-frame camera update — phone orientation drives the camera
-// ============================================================================
-
-function updateCamera() {
-  if (!camera) return;
-
-  if (orientationSupported && (lastAlpha !== null)) {
-    // Apply the live device quaternion to the camera
-    camera.quaternion.copy(deviceQuaternion);
-  } else {
-    // Fallback: static forward-facing camera (original behaviour)
-    camera.position.set(0, 0, 0);
-    camera.rotation.set(0, 0, 0);
-  }
 }
 
 // ============================================================================
@@ -414,26 +374,18 @@ function updateCamera() {
 
 function animate() {
   if (!isRunning) return;
-
   animationFrameId = requestAnimationFrame(animate);
 
-  const delta = clock ? clock.getDelta() : 0.016;
+  const delta = clock?.getDelta() ?? 0.016;
 
-  if (qrScanner) {
-    qrScanner.scan();
-  }
+  if (qrScanner) qrScanner.scan();
 
-  // Drive camera from gyroscope — this is the key change
+  // KEY: camera orbits around the fixed anchor using phone orientation
   updateCamera();
 
-  if (currentLantern) {
-    // Lantern stays at its fixed world-space position — never moved here
-    updateLantern(currentLantern, delta);
-  }
+  if (currentLantern) updateLantern(currentLantern, delta);
 
-  if (renderer && scene && camera) {
-    renderer.render(scene, camera);
-  }
+  if (renderer && scene && camera) renderer.render(scene, camera);
 }
 
 // ============================================================================
@@ -441,9 +393,8 @@ function animate() {
 // ============================================================================
 
 function resetAnchor() {
-  anchorState.placed = false;
-  anchorState.worldPos.set(0, -0.35, -3.0);
-  anchorState.scale = 0.62;
+  anchor.placed = false;
+  anchor.position.set(0, 0, 0);
 
   stopVesakMusic();
 
@@ -453,82 +404,53 @@ function resetAnchor() {
     currentLantern = null;
   }
 
-  if (groundShadow) {
-    groundShadow.visible = false;
-  }
-
-  if (qrScanner) {
-    qrScanner.start();
-  }
+  if (groundShadow) groundShadow.visible = false;
+  if (qrScanner)    qrScanner.start();
 
   statusBar.classList.remove("hidden");
   statusBar.textContent = "Ready to scan";
 }
 
 // ============================================================================
-//  Teardown helpers
+//  Helpers
 // ============================================================================
 
 function stopCameraOnly() {
-  if (qrScanner) {
-    qrScanner.stop();
-    qrScanner = null;
-  }
-
-  if (video.srcObject) {
-    video.srcObject.getTracks().forEach((track) => track.stop());
-    video.srcObject = null;
-  }
-
-  if (currentStream) {
-    currentStream.getTracks().forEach((track) => track.stop());
-    currentStream = null;
-  }
+  if (qrScanner) { qrScanner.stop(); qrScanner = null; }
+  if (video.srcObject)   { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
+  if (currentStream)     { currentStream.getTracks().forEach(t => t.stop()); currentStream = null; }
 }
 
 function stopApp() {
   isRunning = false;
-
   stopVesakMusic();
-
   window.removeEventListener("deviceorientation", onDeviceOrientation, true);
-
-  if (animationFrameId) {
-    cancelAnimationFrame(animationFrameId);
-    animationFrameId = null;
-  }
-
+  if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
   stopCameraOnly();
 }
 
 function disposeObject(obj) {
-  obj.traverse((child) => {
+  obj.traverse(child => {
     if (child.geometry) child.geometry.dispose();
-
     if (child.material) {
-      if (Array.isArray(child.material)) {
-        child.material.forEach(disposeMaterial);
-      } else {
-        disposeMaterial(child.material);
-      }
+      (Array.isArray(child.material) ? child.material : [child.material])
+        .forEach(disposeMaterial);
     }
   });
 }
 
 function disposeMaterial(mat) {
-  if (mat.map) mat.map.dispose();
+  if (mat.map)         mat.map.dispose();
   if (mat.emissiveMap) mat.emissiveMap.dispose();
   mat.dispose();
 }
 
 function onResize() {
   if (!camera || !renderer) return;
-
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-window.addEventListener("pagehide", stopApp);
-window.addEventListener("beforeunload", stopApp);
+window.addEventListener("pagehide",      stopApp);
+window.addEventListener("beforeunload",  stopApp);
