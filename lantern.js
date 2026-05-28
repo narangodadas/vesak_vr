@@ -37,7 +37,7 @@ export function createLantern(type = "vesak-lantern-1") {
       line: 0x4A0000,    // deep crimson — outlines
       glow: 0xB22222,    // firebrick red — glow/emissive
       trim: 0xF5F0F0,    // near white — crown petals, trim rings
-      light: 0xFFEEEE    // warm white — point lights & hanging balls
+      light: 0x45050E    // warm white — point lights & hanging balls
     },
     "vesak-lantern-4": { paper: 0xffab12, line: 0x6e3500, glow: 0xffcf57, trim: 0xfff0a8, light: 0xffb84d },
     "vesak-lantern-5": { paper: 0xff2733, line: 0x5a0008, glow: 0xff5a52, trim: 0xffc27a, light: 0xff5742 }
