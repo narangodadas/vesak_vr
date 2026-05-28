@@ -18,15 +18,28 @@ export function getLanternMusicPath(type = "vesak-lantern-1") {
 
 export function createLantern(type = "vesak-lantern-1") {
   const colorSets = {
-    "vesak-lantern-1": { paper: 0xff5519, line: 0x5c0f00, glow: 0xff7d30, trim: 0xffb648, light: 0xff8a3a },
-    "vesak-lantern-2": { paper: 0x330194, line: 0x350E8A, glow: 0x4D2796, trim: 0x190D33, light: 0xff5fae },
-"vesak-lantern-3": { 
-  paper: 0xA60202,   // neon green — body panels
-  line: 0x730303,   // deep forest green — outlines
-  glow: 0xBD2D2D,   // bright lime green — glow/emissive
-  trim: 0x360606,   // gold yellow — crown petals, trim rings
-  light: 0xff1090   // hot pink/magenta — point lights & hanging balls
-},    "vesak-lantern-4": { paper: 0xffab12, line: 0x6e3500, glow: 0xffcf57, trim: 0xfff0a8, light: 0xffb84d },
+    "vesak-lantern-1": { 
+      paper: 0xB8860B,   // dark goldenrod — body panels
+      line: 0x4A2800,    // deep brown — outlines
+      glow: 0xDAA520,    // goldenrod — glow/emissive
+      trim: 0x6B3A0F,    // warm brown — crown petals, trim rings
+      light: 0xFFD700    // gold — point lights & hanging balls
+    },
+    "vesak-lantern-2": { 
+      paper: 0x0A1A4A,   // dark navy blue — body panels
+      line: 0x050D2A,    // deep midnight blue — outlines
+      glow: 0x1B3A7A,    // rich dark blue — glow/emissive
+      trim: 0xE8EEF7,    // soft white — crown petals, trim rings
+      light: 0xDDE8FF    // cool white-blue — point lights & hanging balls
+    },
+    "vesak-lantern-3": { 
+      paper: 0x8B0000,   // dark red — body panels
+      line: 0x4A0000,    // deep crimson — outlines
+      glow: 0xB22222,    // firebrick red — glow/emissive
+      trim: 0xF5F0F0,    // near white — crown petals, trim rings
+      light: 0xFFEEEE    // warm white — point lights & hanging balls
+    },
+    "vesak-lantern-4": { paper: 0xffab12, line: 0x6e3500, glow: 0xffcf57, trim: 0xfff0a8, light: 0xffb84d },
     "vesak-lantern-5": { paper: 0xff2733, line: 0x5a0008, glow: 0xff5a52, trim: 0xffc27a, light: 0xff5742 }
   };
 
