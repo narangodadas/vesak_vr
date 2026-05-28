@@ -1,7 +1,7 @@
 // ============================================================================
 //  Vesak Kūdu — Ultra Enhanced Lanterns v3
 //  Lantern 1: DARK GREEN THEME  (emerald forest / jade temple)
-//  Lantern 2: NEON AR MANDALA  (hex canopy / pagoda core / hanging arches)
+//  Lantern 2: DARK RED THEME    (crimson fire / ruby crystal)
 //  Lantern 3: DARK GOLD THEME   (ancient gold / amber temple)
 //
 //  New features:
@@ -44,15 +44,15 @@ const colorSets = {
     bg:      0x001a08    // darkest background tint
   },
 
-  // ── LANTERN 2 ── NEON AR MANDALA (green / magenta / gold / black contrast)
+  // ── LANTERN 2 ── DARK RED (crimson / ruby / bloodfire)
   "vesak-lantern-2": {
-    paper:   0x050509,   // almost-black hologram body for strong AR contrast
-    line:    0x010103,   // deep black pattern ink
-    glow:    0x00ff66,   // neon green floral glow
-    trim:    0xffc400,   // golden-yellow ornamental borders
-    light:   0xff2bd6,   // bright pink / magenta inner light
-    accent:  0xffffff,   // white accent borders and bead highlights
-    bg:      0x000000    // black background tint
+    paper:   0x2d0005,   // very dark crimson body
+    line:    0x0e0002,   // near-black red ink
+    glow:    0x8C112A,   // hot red glow
+    trim:    0x852929,   // coral / scarlet trim
+    light:   0xd50000,   // deep red light
+    accent:  0x73413C,   // salmon accent
+    bg:      0x1a0000    // darkest background tint
   },
 
   // ── LANTERN 3 ── DARK GOLD (amber / antique gold / sun temple)
@@ -105,28 +105,27 @@ const styleSets = {
     knotCount: 6
   },
 
-  // ── LANTERN 2 ── fully redesigned from uploaded Vesak AR reference
-  // Hexagonal neon canopy + circular mandala rows + hanging arches + pagoda core
+  // ── LANTERN 2 ── octagonal ruby crystal tower
   "vesak-lantern-2": {
-    name: "neon-ar-mandala-hex",
-    sideCount: 6,
-    topShape: "hex-neon-canopy",
-    bulbShape: "tiered-pagoda-core",
-    lowerTopRadius: 0.62,
-    lowerBottomRadius: 1.34,
-    upperTopRadius: 1.38,
-    upperBottomRadius: 0.62,
-    pavilionTopCount: 12,
-    pavilionBottomCount: 18,
-    miniRadiusTop: 1.78,
-    miniRadiusBottom: 1.64,
-    sparkleCount: 54,
-    petalCount: 30,
-    spikeCount: 18,
-    scaleY: 1.06,
-    tassels: 22,
-    dharmaParticles: 60,
-    knotCount: 7
+    name: "ruby-crystal-tower",
+    sideCount: 8,
+    topShape: "crystal-spire",
+    bulbShape: "octahedron-stack",
+    lowerTopRadius: 0.25,
+    lowerBottomRadius: 1.18,
+    upperTopRadius: 1.18,
+    upperBottomRadius: 0.25,
+    pavilionTopCount: 8,
+    pavilionBottomCount: 10,
+    miniRadiusTop: 1.62,
+    miniRadiusBottom: 1.50,
+    sparkleCount: 32,
+    petalCount: 16,
+    spikeCount: 16,
+    scaleY: 1.16,
+    tassels: 10,
+    dharmaParticles: 28,
+    knotCount: 4
   },
 
   // ── LANTERN 3 ── 16-sided golden sun temple
@@ -375,48 +374,6 @@ export function createLantern(type = "vesak-lantern-1") {
     return tk;
   };
 
-  // ── Lantern 02 only: uploaded AR design hanging arch / leaf-flame helpers ──
-  const addNeonArchLayer = (parent, y, radius, count, height = 0.52) => {
-    for (let i = 0; i < count; i++) {
-      const a = (i / count) * Math.PI * 2;
-      const pts = [];
-      for (let j = 0; j <= 18; j++) {
-        const u = j / 18;
-        const side = (u - 0.5) * 0.82;
-        const drop = -Math.sin(u * Math.PI) * height;
-        pts.push(new THREE.Vector3(side, drop, 0));
-      }
-      const arch = new THREE.Mesh(
-        new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 42, 0.018, 8, false),
-        i % 2 === 0 ? solidGlow(c.trim, 1.15) : solidGlow(c.light, 1.15)
-      );
-      const wrap = new THREE.Group();
-      wrap.add(arch);
-      wrap.position.set(Math.sin(a) * radius, y, Math.cos(a) * radius);
-      wrap.rotation.y = a;
-      wrap.userData.phase = i * 0.55 + y;
-      parent.add(wrap);
-      U.ribbons.push({ group: wrap, phase: wrap.userData.phase });
-    }
-  };
-
-  const addLeafFlameRing = (parent, y, radius, count, scale = 1) => {
-    for (let i = 0; i < count; i++) {
-      const a = (i / count) * Math.PI * 2;
-      const leaf = new THREE.Mesh(
-        new THREE.SphereGeometry(0.085 * scale, 18, 12),
-        i % 2 === 0 ? solidGlow(c.glow, 1.25) : solidGlow(c.light, 1.2)
-      );
-      leaf.scale.set(1.05, 2.9, 0.28);
-      leaf.position.set(Math.sin(a) * radius, y + Math.sin(i) * 0.025, Math.cos(a) * radius);
-      leaf.rotation.y = a;
-      leaf.rotation.z = (i % 2 === 0 ? 1 : -1) * Math.PI / 6;
-      leaf.userData.phase = i * 0.37 + y;
-      parent.add(leaf);
-      U.petals.push({ mesh: leaf, phase: leaf.userData.phase });
-    }
-  };
-
   // ── tassel chain ─────────────────────────────────────────────────────────
   const buildTassel = (len = 5) => {
     const g = new THREE.Group();
@@ -492,14 +449,6 @@ export function createLantern(type = "vesak-lantern-1") {
 
   placeTassels(part3Bottom, style.tassels, style.lowerBottomRadius * 0.88, -3.15);
 
-  if (style.name === "neon-ar-mandala-hex") {
-    // Wide temple/oil-lamp inspired base platform with final white/gold ornamental border
-    addNeonArchLayer(part3Bottom, -2.32, style.lowerBottomRadius * 0.98, 6, 0.36);
-    addLeafFlameRing(part3Bottom, -2.88, style.lowerBottomRadius * 0.72, 12, 0.72);
-    addSparkleRing(part3Bottom, -3.03, style.lowerBottomRadius * 0.98, 42);
-    addFiligreeRing(part3Bottom, -3.24, style.lowerBottomRadius * 0.92);
-  }
-
   // ==========================================================================
   //  PART 2 — MIDDLE SECTION (bulb)
   // ==========================================================================
@@ -512,51 +461,6 @@ export function createLantern(type = "vesak-lantern-1") {
     bulb.scale.set(0.95, 0.92, 0.95);
     addPetalRing(part2Middle, -0.36, 0.64, style.petalCount, 1.08);
     addFiligreeRing(part2Middle, 0.22, 0.62);
-  } else if (style.bulbShape === "tiered-pagoda-core") {
-    // Lantern 02: uploaded AR reference center core — tiered pagoda tower with neon mandala belts
-    bulb = new THREE.Group();
-
-    const tiers = [
-      { y: -0.58, r: 0.70, h: 0.12, mat: texMat(T.dharma, 6, 1, 1.65) },
-      { y: -0.39, r: 0.56, h: 0.15, mat: texMat(T.mandala, 6, 1, 1.60) },
-      { y: -0.18, r: 0.43, h: 0.18, mat: texMat(T.lotus, 6, 1, 1.55) },
-      { y:  0.05, r: 0.32, h: 0.22, mat: texMat(T.wheel, 6, 1, 1.50) }
-    ];
-
-    tiers.forEach((tier, i) => {
-      const disk = new THREE.Mesh(
-        new THREE.CylinderGeometry(tier.r * 0.78, tier.r, tier.h, 6, 1, false),
-        tier.mat
-      );
-      disk.position.y = tier.y;
-      disk.rotation.y = i * Math.PI / 6;
-      bulb.add(disk);
-
-      const rim = new THREE.Mesh(new THREE.TorusGeometry(tier.r, 0.018, 10, 6), i % 2 ? solidGlow(c.light, 1.25) : trimMat(1.15));
-      rim.position.y = tier.y + tier.h * 0.55;
-      rim.rotation.x = Math.PI / 2;
-      bulb.add(rim);
-      U.rings.push({ mesh: rim, phase: tier.y + i });
-    });
-
-    const centreColumn = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.18, 0.26, 0.92, 18, 1, true),
-      texMat(T.filigree, 6, 1.2, 1.7)
-    );
-    centreColumn.position.y = -0.23;
-    bulb.add(centreColumn);
-
-    const lotusCup = new THREE.Mesh(new THREE.ConeGeometry(0.40, 0.30, 6), solidGlow(c.trim, 1.25));
-    lotusCup.position.y = 0.31;
-    lotusCup.rotation.y = Math.PI / 6;
-    bulb.add(lotusCup);
-
-    addLeafFlameRing(part2Middle, -0.28, 0.78, 12, 1.05);
-    addPetalRing(part2Middle, -0.66, 0.84, style.petalCount, 0.92);
-    addSparkleRing(part2Middle, -0.52, 0.98, style.sparkleCount);
-    addNeonArchLayer(part2Middle, 0.34, 1.08, 6, 0.45);
-    addNeonArchLayer(part2Middle, -0.78, 1.12, 6, 0.40);
-    addTorusKnot(part2Middle, -0.26, 4, 3);
   } else if (style.bulbShape === "octahedron-stack") {
     // ruby: stacked octahedra
     bulb = new THREE.Group();
@@ -607,15 +511,6 @@ export function createLantern(type = "vesak-lantern-1") {
   addSparkleRing(part2Middle, 0.74, style.upperTopRadius * 0.82, style.sparkleCount);
   addJewelCrown(part2Middle, 1.32, style.upperTopRadius * 0.85, style.petalCount);
 
-  if (style.name === "neon-ar-mandala-hex") {
-    // Extra uploaded-reference details: pink floral bands, circular mandala rows, white/gold bead borders
-    addNeonArchLayer(part2Middle, 0.92, style.upperTopRadius * 1.02, 6, 0.34);
-    addLeafFlameRing(part2Middle, 0.64, style.upperTopRadius * 0.82, 12, 0.88);
-    addSparkleRing(part2Middle, 1.05, style.upperTopRadius * 1.03, 36);
-    addFiligreeRing(part2Middle, 0.42, style.upperTopRadius * 0.78);
-    addFiligreeRing(part2Middle, 1.02, style.upperTopRadius * 0.96);
-  }
-
   // glow shells
   [
     [0.65, c.glow,   0.58],
@@ -646,32 +541,6 @@ export function createLantern(type = "vesak-lantern-1") {
     addFiligreeRing(part1Top, 1.92, 0.65);
     addJewelCrown(part1Top, 2.02, 0.6, 12);
 
-  } else if (style.topShape === "hex-neon-canopy") {
-    // Lantern 02: uploaded AR reference top — large hexagonal neon canopy / umbrella dome
-    const canopy = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.68, 1.30, 0.52, 6, 1, true),
-      texMat(T.mandala, 6, 1.15, 1.75)
-    );
-    canopy.position.y = 1.62;
-    canopy.rotation.y = Math.PI / 6;
-    part1Top.add(canopy);
-
-    const innerDome = new THREE.Mesh(
-      new THREE.ConeGeometry(1.02, 0.44, 6, 1, true),
-      texMat(T.lotus, 6, 1.0, 1.55)
-    );
-    innerDome.position.y = 1.86;
-    innerDome.rotation.y = Math.PI / 6;
-    part1Top.add(innerDome);
-
-    addFiligreeRing(part1Top, 1.34, 1.30);
-    addFiligreeRing(part1Top, 1.58, 1.04);
-    addFiligreeRing(part1Top, 1.83, 0.76);
-    addPetalRing(part1Top, 1.44, 1.06, style.petalCount, 0.9);
-    addSparkleRing(part1Top, 1.54, 1.28, style.sparkleCount);
-    addJewelCrown(part1Top, 1.31, 1.20, 24);
-    addNeonArchLayer(part1Top, 1.22, 1.36, 6, 0.36);
-    addLeafFlameRing(part1Top, 1.72, 0.72, 12, 0.78);
   } else if (style.topShape === "crystal-spire") {
     // stacked crystal diamonds + spire
     [0, 0.38, 0.72].forEach((dy, i) => {
@@ -708,11 +577,9 @@ export function createLantern(type = "vesak-lantern-1") {
   const roofGeo =
     style.topShape === "sun-crown"
       ? new THREE.ConeGeometry(1.05, 0.48, 16)
-      : style.topShape === "hex-neon-canopy"
-        ? new THREE.ConeGeometry(0.92, 0.40, 6)
-        : style.topShape === "crystal-spire"
-          ? new THREE.ConeGeometry(0.68, 0.72, 8)
-          : new THREE.ConeGeometry(0.88, 0.52, 12);
+      : style.topShape === "crystal-spire"
+        ? new THREE.ConeGeometry(0.68, 0.72, 8)
+        : new THREE.ConeGeometry(0.88, 0.52, 12);
 
   const roof = new THREE.Mesh(roofGeo, trimMat(1.05));
   roof.position.y = 2.24;
@@ -768,16 +635,14 @@ export function createLantern(type = "vesak-lantern-1") {
     const bodyGeo =
       style.name === "ruby-crystal-tower"
         ? new THREE.OctahedronGeometry(0.2, 0)
-        : style.name === "neon-ar-mandala-hex"
-          ? new THREE.CylinderGeometry(0.16, 0.20, 0.30, 6)
-          : style.name === "golden-sun-temple"
+        : style.name === "golden-sun-temple"
           ? new THREE.IcosahedronGeometry(0.18, 0)
           : new THREE.BoxGeometry(0.32, 0.32, 0.32);
 
     const body = new THREE.Mesh(bodyGeo, texMat(T.hut, 1, 1, 1.2));
     body.position.y = -0.33; g.add(body);
 
-    const roofSides = style.name === "jade-lotus-pagoda" ? 8 : style.name === "golden-sun-temple" ? 10 : style.name === "neon-ar-mandala-hex" ? 6 : 6;
+    const roofSides = style.name === "jade-lotus-pagoda" ? 8 : style.name === "golden-sun-temple" ? 10 : 6;
     const rf = new THREE.Mesh(new THREE.ConeGeometry(0.30, 0.26, roofSides), trimMat(0.85));
     rf.position.y = -0.09; rf.rotation.y = Math.PI / roofSides;
     g.add(rf);
@@ -883,7 +748,7 @@ export function createLantern(type = "vesak-lantern-1") {
     return g;
   };
 
-  const hangingCount = style.name === "golden-sun-temple" ? 18 : style.name === "neon-ar-mandala-hex" ? 24 : style.name === "ruby-crystal-tower" ? 12 : 14;
+  const hangingCount = style.name === "golden-sun-temple" ? 18 : style.name === "ruby-crystal-tower" ? 12 : 14;
   for (let i = 0; i < hangingCount; i++) {
     const a = (i / hangingCount) * Math.PI * 2;
     const R = i % 2 === 0 ? 1.06 : 0.86;
@@ -1278,4 +1143,3 @@ function hashText(text) {
   }
   return hash;
 }
-
